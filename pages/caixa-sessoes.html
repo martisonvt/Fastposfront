@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestão de Caixa - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    .sessao-card { border-radius:12px; border:2px solid #e9ecef; transition:all .15s; }
+    .sessao-card.aberto { border-color:#2d8a4e; }
+    .sessao-card .kpi-row { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.75rem; }
+    .sessao-card .kpi-mini { flex:1; min-width:80px; background:#f8f9fa; border-radius:8px; padding:.4rem .6rem; text-align:center; }
+    .sessao-card .kpi-mini .val { font-size:.9rem; font-weight:700; }
+    .sessao-card .kpi-mini .lbl { font-size:.65rem; color:#6c757d; text-transform:uppercase; }
+  </style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <h5 class="mb-0 fw-bold"><i class="bi bi-cash-coin me-2"></i>Gestão de Caixa</h5>
+    <button class="btn btn-dark btn-sm fw-semibold" onclick="abrirModalNovoCaixa()">
+      <i class="bi bi-plus-circle me-1"></i>Abrir Novo Caixa
+    </button>
+  </div>
+
+  <!-- Caixas Abertos -->
+  <h6 class="text-muted fw-semibold mb-2"><i class="bi bi-unlock-fill me-1"></i>Caixas Abertos</h6>
+  <div id="caixas-abertos" class="row g-3 mb-4">
+    <div class="col-12 text-muted small">Carregando...</div>
+  </div>
+
+  <!-- Histórico -->
+  <h6 class="text-muted fw-semibold mb-2"><i class="bi bi-clock-history me-1"></i>Histórico de Sessões</h6>
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0" id="tabela-historico">
+          <thead>
+            <tr>
+              <th>Vendedor</th>
+              <th>Abertura</th>
+              <th>Fechamento</th>
+              <th class="text-end">Fundo</th>
+              <th class="text-end">Vendas</th>
+              <th class="text-end">Sangria</th>
+              <th class="text-end">Acréscimo</th>
+              <th class="text-end">Saldo Final</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="historico-body">
+            <tr><td colspan="10" class="text-center py-3 text-muted">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Abrir Novo Caixa -->
+<div class="modal fade" id="modalNovoCaixa" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title fw-bold"><i class="bi bi-unlock me-1"></i>Abrir Caixa</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Vendedor *</label>
+          <select id="nc-vendedor" class="form-select form-select-sm">
+            <option value="">Selecione...</option>
+          </select>
+        </div>
+        <div class="mb-1">
+          <label class="form-label small fw-semibold">Fundo de Caixa (R$)</label>
+          <input type="number" id="nc-fundo" class="form-control form-control-sm" value="0" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-sm btn-pdv fw-bold" onclick="confirmarAbrirCaixa()" id="btn-conf-abrir">
+          <i class="bi bi-unlock me-1"></i>Abrir
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Fechar Caixa -->
+<div class="modal fade" id="modalFechar" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header py-2 bg-danger bg-opacity-10">
+        <h6 class="modal-title fw-bold"><i class="bi bi-x-circle me-1 text-danger"></i>Fechar Caixa</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="resumo-fechar" class="mb-3">Carregando...</div>
+        <div class="mb-1">
+          <label class="form-label small fw-semibold">Observações</label>
+          <textarea id="fc-obs" class="form-control form-control-sm" rows="2" placeholder="Opcional..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-sm btn-danger fw-bold" onclick="confirmarFecharCaixa()" id="btn-conf-fechar">
+          <i class="bi bi-x-circle me-1"></i>Confirmar Fechamento
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Sangria / Acréscimo -->
+<div class="modal fade" id="modalMovimento" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2" id="mov-header">
+        <h6 class="modal-title fw-bold" id="mov-titulo"></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Forma de Pagamento *</label>
+          <select id="mov-forma" class="form-select form-select-sm" onchange="_atualizarSaldoFormaModal()">
+            <option value="dinheiro">💵 Dinheiro</option>
+            <option value="pix">📱 PIX</option>
+            <option value="debito">💳 Débito</option>
+            <option value="credito">💳 Crédito</option>
+            <option value="boleto">📄 Boleto</option>
+            <option value="cheque">🏦 Cheque</option>
+          </select>
+        </div>
+        <div class="mb-2" id="mov-saldo-forma-wrap" style="display:none">
+          <div class="alert alert-info py-1 px-2 mb-0 small">
+            <i class="bi bi-info-circle me-1"></i>
+            Disponível: <strong id="mov-saldo-forma-val">—</strong>
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Valor</label>
+          <div id="calc-display" style="font-size:2rem;font-weight:700;text-align:center;padding:8px 4px 6px;border-bottom:2px solid #dee2e6;margin-bottom:8px;color:#1a2540;letter-spacing:1px">R$ 0,00</div>
+          <input type="hidden" id="mov-valor" value="">
+          <!-- Atalhos rápidos -->
+          <div class="d-flex gap-1 mb-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" onclick="_calcAdicionar(1000)">+10</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" onclick="_calcAdicionar(2000)">+20</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" onclick="_calcAdicionar(5000)">+50</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" onclick="_calcAdicionar(10000)">+100</button>
+          </div>
+          <!-- Teclado numérico -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px">
+            <button type="button" class="btn btn-light fw-bold py-2" onclick="_calcDigito('7')">7</button>
+            <button type="button" class="btn btn-light fw-bold py-2" onclick="_calcDigito('8')">8</button>
+            <button type="button" class="btn btn-light fw-bold py-2" onclick="_calcDigito('9')">9</button>
+            <button type="button" class="btn btn-light fw-bold py-2" onclick="_calcDigito('4')">4</button>
+            <button type="button" class="btn btn-light fw-bold py-2" onclick="_calcDigito('5')">5</button>
+            <button type="button" class="btn btn-light fw-bold py-2" onclick="_calcDigito('6')">6</button>
+            <button type="button" class="btn btn-light fw-bold py-2" onclick="_calcDigito('1')">1</button>
+            <button type="button" class="btn btn-light fw-bold py-2" onclick="_calcDigito('2')">2</button>
+            <button type="button" class="btn btn-light fw-bold py-2" onclick="_calcDigito('3')">3</button>
+            <button type="button" class="btn btn-danger fw-bold py-2" onclick="_calcClear()">C</button>
+            <button type="button" class="btn btn-light fw-bold py-2" onclick="_calcDigito('0')">0</button>
+            <button type="button" class="btn btn-secondary fw-bold py-2" onclick="_calcBackspace()">⌫</button>
+          </div>
+        </div>
+        <div class="mb-1">
+          <label class="form-label small fw-semibold">Motivo</label>
+          <input type="text" id="mov-motivo" class="form-control form-control-sm" placeholder="Opcional...">
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-sm fw-bold" id="btn-conf-mov" onclick="confirmarMovimento()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detalhe Sessão -->
+<div class="modal fade" id="modalDetalhe" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title fw-bold"><i class="bi bi-receipt me-1"></i>Detalhe da Sessão</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="detalhe-body">Carregando...</div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="imprimirDetalhe()">
+          <i class="bi bi-printer me-1"></i>Imprimir
+        </button>
+        <button class="btn btn-sm btn-outline-success" onclick="exportarDetalheExcel()">
+          <i class="bi bi-file-earmark-excel me-1"></i>Excel
+        </button>
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="/js/api.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script src="/js/components.js?v=2"></script>
+<script>
+  if (!requireLogin()) throw '';
+  requirePermissao('gestao_caixa');
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/caixa-sessoes.html');
+
+  const modalNovoCaixa = new bootstrap.Modal(document.getElementById('modalNovoCaixa'));
+  const modalFechar    = new bootstrap.Modal(document.getElementById('modalFechar'));
+  const modalMovimento = new bootstrap.Modal(document.getElementById('modalMovimento'));
+  const modalDetalhe   = new bootstrap.Modal(document.getElementById('modalDetalhe'));
+
+  let sessaoFecharAtual = null;
+  let sessaoMovimentoAtual = null;
+  let tipoMovimentoAtual = '';
+  let todosVendedores = [];
+  let todasSessoes = [];
+  let saldoFormaAtual = {};  // saldo_por_forma da sessão no movimento
+  let _detalheAtual = null;  // dados da sessão aberta no modal Ver Detalhes
+
+  async function init() {
+    todosVendedores = await api.vendedores.listar().catch(() => []);
+    // Popula select do modal de abrir caixa
+    const sel = document.getElementById('nc-vendedor');
+    sel.innerHTML = '<option value="">Selecione...</option>';
+    todosVendedores.filter(v => !v.is_admin).forEach(v => {
+      sel.add(new Option(v.nome, v.id));
+    });
+    await carregarDados();
+  }
+
+  async function carregarDados() {
+    todasSessoes = await api.caixa.historico().catch(() => []);
+    renderCaixasAbertos();
+    renderHistorico();
+  }
+
+  function renderCaixasAbertos() {
+    const abertas = todasSessoes.filter(s => s.status === 'aberto');
+    const el = document.getElementById('caixas-abertos');
+    if (abertas.length === 0) {
+      el.innerHTML = '<div class="col-12"><p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>Nenhum caixa aberto no momento.</p></div>';
+      return;
+    }
+    el.innerHTML = abertas.map(s => `
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card sessao-card aberto p-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <span class="badge bg-success mb-1"><i class="bi bi-unlock-fill me-1"></i>Aberto</span>
+              <h6 class="fw-bold mb-0">${s.vendedor_nome || 'Vendedor #' + s.vendedor_id}</h6>
+              <small class="text-muted">Desde ${fmtData(s.aberto_em)}</small>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="verDetalhe(${s.id})" title="Ver detalhe">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <div class="kpi-row">
+            <div class="kpi-mini">
+              <div class="val">${fmtMoeda(s.valor_inicial)}</div>
+              <div class="lbl">Fundo</div>
+            </div>
+            <div class="kpi-mini" id="kpi-vendas-${s.id}">
+              <div class="val">...</div>
+              <div class="lbl">Vendas</div>
+            </div>
+            <div class="kpi-mini">
+              <div class="val text-danger">${fmtMoeda(s.total_sangria || 0)}</div>
+              <div class="lbl">Sangria</div>
+            </div>
+            <div class="kpi-mini">
+              <div class="val text-info">${fmtMoeda(s.total_acrescimo || 0)}</div>
+              <div class="lbl">Acrésc.</div>
+            </div>
+          </div>
+          <div class="mt-2 mb-1 px-1">
+            <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:3px">
+              <i class="bi bi-wallet2 me-1"></i>Disponível por forma
+            </div>
+            <div id="kpi-formas-${s.id}">
+              <span class="text-muted small"><span class="spinner-border spinner-border-sm"></span></span>
+            </div>
+          </div>
+          <div class="d-flex gap-1 mt-2 flex-wrap">
+            <button class="btn btn-sm btn-outline-warning flex-fill" onclick="abrirMovimento(${s.id},'sangria')">
+              <i class="bi bi-dash-circle me-1"></i>Sangria
+            </button>
+            <button class="btn btn-sm btn-outline-info flex-fill" onclick="abrirMovimento(${s.id},'acrescimo')">
+              <i class="bi bi-plus-circle me-1"></i>Acréscimo
+            </button>
+            <button class="btn btn-sm btn-outline-danger flex-fill" onclick="abrirFechar(${s.id})">
+              <i class="bi bi-x-circle me-1"></i>Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    // Busca totais reais de vendas async para cada sessão
+    abertas.forEach(s => carregarKpiVendas(s));
+  }
+
+  async function carregarKpiVendas(sessao) {
+    try {
+      const resumo = await api.caixa.resumo(sessao.id);
+      const el = document.getElementById(`kpi-vendas-${sessao.id}`);
+      if (el) {
+        el.innerHTML = `<div class="val text-success">${fmtMoeda(resumo.total_vendas_real || 0)}</div><div class="lbl">Vendas (${resumo.qtd_vendas || 0})</div>`;
+      }
+      // Saldo por forma de pagamento
+      const elFormas = document.getElementById(`kpi-formas-${sessao.id}`);
+      if (elFormas && resumo.saldo_por_forma) {
+        const formasOrdem = ['dinheiro','pix','debito','credito','boleto','cheque','fiado'];
+        const icones = { dinheiro:'💵', pix:'📱', debito:'💳', credito:'💳', boleto:'📄', cheque:'🏦', fiado:'🤝' };
+        const linhas = formasOrdem
+          .filter(f => resumo.saldo_por_forma[f] != null && resumo.saldo_por_forma[f] !== 0)
+          .map(f => `<div class="d-flex justify-content-between align-items-center" style="font-size:.78rem;padding:2px 0;border-bottom:1px solid #f0f0f0">
+            <span class="text-muted">${icones[f]||'💰'} ${nomePagamento(f)}</span>
+            <span class="fw-semibold ${resumo.saldo_por_forma[f] < 0 ? 'text-danger' : 'text-success'}">${fmtMoeda(resumo.saldo_por_forma[f])}</span>
+          </div>`).join('');
+        elFormas.innerHTML = linhas || '<span class="text-muted small">Sem movimentos ainda</span>';
+      }
+    } catch {}
+  }
+
+  function renderHistorico() {
+    const fechadas = todasSessoes.filter(s => s.status === 'fechado');
+    const tbody = document.getElementById('historico-body');
+    if (fechadas.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center py-3 text-muted">Nenhuma sessão fechada ainda.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = fechadas.map(s => {
+      const saldo = (s.valor_inicial||0) + (s.total_vendas||0) + (s.total_acrescimo||0) - (s.total_sangria||0);
+      return `<tr style="cursor:pointer" onclick="verDetalhe(${s.id})">
+        <td class="fw-semibold">${s.vendedor_nome || '#' + s.vendedor_id}</td>
+        <td><small>${fmtData(s.aberto_em)}</small></td>
+        <td><small>${s.fechado_em ? fmtData(s.fechado_em) : '—'}</small></td>
+        <td class="text-end">${fmtMoeda(s.valor_inicial||0)}</td>
+        <td class="text-end text-success">${fmtMoeda(s.total_vendas||0)}</td>
+        <td class="text-end text-danger">${s.total_sangria > 0 ? fmtMoeda(s.total_sangria) : '—'}</td>
+        <td class="text-end text-info">${s.total_acrescimo > 0 ? fmtMoeda(s.total_acrescimo) : '—'}</td>
+        <td class="text-end fw-bold">${fmtMoeda(saldo)}</td>
+        <td><span class="badge bg-secondary">Fechado</span></td>
+        <td><button class="btn btn-xs btn-outline-secondary btn-sm py-0 px-1" onclick="event.stopPropagation();verDetalhe(${s.id})"><i class="bi bi-eye"></i></button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Abrir Caixa ──
+  function abrirModalNovoCaixa() {
+    document.getElementById('nc-fundo').value = '0';
+    document.getElementById('nc-vendedor').value = '';
+    modalNovoCaixa.show();
+  }
+
+  async function confirmarAbrirCaixa() {
+    const vendedor_id = parseInt(document.getElementById('nc-vendedor').value);
+    if (!vendedor_id) { showToast('Selecione um vendedor', 'warning'); return; }
+    const valor_inicial = parseFloat(document.getElementById('nc-fundo').value) || 0;
+    const btn = document.getElementById('btn-conf-abrir');
+    btnLoading(btn, true);
+    try {
+      await api.caixa.abrir({ vendedor_id, valor_inicial });
+      modalNovoCaixa.hide();
+      showToast('Caixa aberto!', 'success');
+      await carregarDados();
+    } catch(e) {
+      showToast(e.message, 'error');
+    } finally {
+      btnLoading(btn, false);
+    }
+  }
+
+  // ── Fechar Caixa ──
+  async function abrirFechar(sessao_id) {
+    sessaoFecharAtual = todasSessoes.find(s => s.id === sessao_id);
+    if (!sessaoFecharAtual) return;
+    document.getElementById('fc-obs').value = '';
+    document.getElementById('resumo-fechar').innerHTML = 'Carregando...';
+    modalFechar.show();
+    try {
+      const resumo = await api.caixa.resumo(sessao_id);
+      const saldo = (resumo.saldo_final != null ? resumo.saldo_final : 0);
+      document.getElementById('resumo-fechar').innerHTML = `
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr><td class="text-muted">Vendedor</td><td class="text-end fw-semibold">${resumo.vendedor_nome || ''}</td></tr>
+            <tr><td class="text-muted">Fundo de Caixa</td><td class="text-end">${fmtMoeda(resumo.valor_inicial||0)}</td></tr>
+            <tr><td class="text-muted">Total de Vendas</td><td class="text-end text-success fw-semibold">${fmtMoeda(resumo.total_vendas_real||0)} <small>(${resumo.qtd_vendas||0} venda${resumo.qtd_vendas!==1?'s':''})</small></td></tr>
+            ${(resumo.total_dinheiro_real||0)>0 ? `<tr><td class="text-muted ps-3">↳ Dinheiro</td><td class="text-end text-muted">${fmtMoeda(resumo.total_dinheiro_real)}</td></tr>` : ''}
+            ${(resumo.total_acrescimo_real||0)>0 ? `<tr><td class="text-muted">Acréscimos</td><td class="text-end text-info">+ ${fmtMoeda(resumo.total_acrescimo_real)}</td></tr>` : ''}
+            ${(resumo.total_sangria_real||0)>0  ? `<tr><td class="text-muted">Sangrias</td><td class="text-end text-danger">- ${fmtMoeda(resumo.total_sangria_real)}</td></tr>` : ''}
+            ${resumo.movimentos && resumo.movimentos.length > 0 ? resumo.movimentos.map(m =>
+              `<tr><td class="text-muted ps-3">${m.tipo==='sangria'?'↓':'↑'} ${m.tipo==='sangria'?'Sangria':'Acréscimo'} (${nomePagamento(m.forma_pagamento||'dinheiro')})${m.motivo?' — '+m.motivo:''}</td>
+               <td class="text-end ${m.tipo==='sangria'?'text-danger':'text-info'}">${m.tipo==='sangria'?'-':'+'} ${fmtMoeda(m.valor)}</td></tr>`
+            ).join('') : ''}
+            <tr class="table-success"><td class="fw-bold">Saldo Final Estimado</td><td class="text-end fw-bold">${fmtMoeda(saldo)}</td></tr>
+          </tbody>
+        </table>
+        ${resumo.saldo_por_forma && Object.keys(resumo.saldo_por_forma).length > 0 ? (() => {
+          const icones = { dinheiro:'💵', pix:'📱', debito:'💳', credito:'💳', boleto:'📄', cheque:'🏦', fiado:'🤝' };
+          const formasOrdem = ['dinheiro','pix','debito','credito','boleto','cheque','fiado'];
+          const linhas = formasOrdem
+            .filter(f => resumo.saldo_por_forma[f] != null && (resumo.saldo_por_forma[f] !== 0 || f === 'dinheiro'))
+            .map(f => `<tr>
+              <td class="small">${icones[f]||'💰'} ${nomePagamento(f)}</td>
+              <td class="text-end fw-semibold small ${resumo.saldo_por_forma[f] < 0 ? 'text-danger' : 'text-success'}">${fmtMoeda(resumo.saldo_por_forma[f])}</td>
+            </tr>`).join('');
+          return linhas ? `<div class="mt-2">
+            <div class="text-muted small fw-semibold mb-1"><i class="bi bi-wallet2 me-1"></i>Disponível por forma</div>
+            <table class="table table-sm table-bordered mb-0">
+              <tbody>${linhas}</tbody>
+            </table></div>` : '';
+        })() : ''}`;
+    } catch {
+      document.getElementById('resumo-fechar').innerHTML = '<p class="text-muted small">Não foi possível carregar o resumo.</p>';
+    }
+  }
+
+  async function confirmarFecharCaixa() {
+    if (!sessaoFecharAtual) return;
+    const obs = document.getElementById('fc-obs').value.trim() || null;
+    const btn = document.getElementById('btn-conf-fechar');
+    btnLoading(btn, true);
+    try {
+      await api.caixa.fechar({ vendedor_id: sessaoFecharAtual.vendedor_id, observacoes: obs });
+      modalFechar.hide();
+      showToast('Caixa fechado!', 'success');
+      sessaoFecharAtual = null;
+      await carregarDados();
+    } catch(e) {
+      showToast(e.message, 'error');
+    } finally {
+      btnLoading(btn, false);
+    }
+  }
+
+  // ── Calculadora Sangria/Acréscimo ──
+  let _calcCentavos = 0;
+  function _calcAtualizar() {
+    const val = _calcCentavos / 100;
+    document.getElementById('calc-display').textContent = fmtMoeda(val);
+    document.getElementById('mov-valor').value = val > 0 ? val.toFixed(2) : '';
+  }
+  function _calcDigito(d) {
+    if (_calcCentavos >= 9999999) return;
+    _calcCentavos = _calcCentavos * 10 + parseInt(d);
+    _calcAtualizar();
+  }
+  function _calcBackspace() {
+    _calcCentavos = Math.floor(_calcCentavos / 10);
+    _calcAtualizar();
+  }
+  function _calcClear() {
+    _calcCentavos = 0;
+    _calcAtualizar();
+  }
+  function _calcAdicionar(centavos) {
+    _calcCentavos = Math.min(_calcCentavos + centavos, 9999999);
+    _calcAtualizar();
+  }
+
+  // ── Sangria / Acréscimo ──
+  async function abrirMovimento(sessao_id, tipo) {
+    sessaoMovimentoAtual = todasSessoes.find(s => s.id === sessao_id);
+    tipoMovimentoAtual = tipo;
+    const isSangria = tipo === 'sangria';
+    document.getElementById('mov-titulo').innerHTML = isSangria
+      ? '<i class="bi bi-dash-circle me-1 text-warning"></i>Sangria'
+      : '<i class="bi bi-plus-circle me-1 text-info"></i>Acréscimo';
+    document.getElementById('mov-header').className = `modal-header py-2 ${isSangria ? 'bg-warning' : 'bg-info'} bg-opacity-10`;
+    const btnConf = document.getElementById('btn-conf-mov');
+    btnConf.className = `btn btn-sm fw-bold ${isSangria ? 'btn-warning' : 'btn-info'}`;
+    _calcCentavos = 0; _calcAtualizar();
+    document.getElementById('mov-motivo').value = '';
+    document.getElementById('mov-forma').value = 'dinheiro';
+    document.getElementById('mov-saldo-forma-wrap').style.display = 'none';
+    saldoFormaAtual = {};
+    modalMovimento.show();
+    // Carrega saldo por forma em background
+    try {
+      const resumo = await api.caixa.resumo(sessao_id);
+      saldoFormaAtual = resumo.saldo_por_forma || {};
+      _atualizarSaldoFormaModal();
+    } catch {}
+  }
+
+  function _atualizarSaldoFormaModal() {
+    const forma = document.getElementById('mov-forma').value;
+    const wrap = document.getElementById('mov-saldo-forma-wrap');
+    const val  = document.getElementById('mov-saldo-forma-val');
+    if (saldoFormaAtual && saldoFormaAtual[forma] != null) {
+      val.textContent = fmtMoeda(saldoFormaAtual[forma]);
+      wrap.style.display = '';
+    } else {
+      wrap.style.display = 'none';
+    }
+  }
+
+  async function confirmarMovimento() {
+    if (!sessaoMovimentoAtual) return;
+    const valor = parseFloat(document.getElementById('mov-valor').value);
+    if (!valor || valor <= 0) { showToast('Informe um valor válido', 'warning'); return; }
+    const motivo = document.getElementById('mov-motivo').value.trim() || null;
+    const forma_pagamento = document.getElementById('mov-forma').value || 'dinheiro';
+    const btn = document.getElementById('btn-conf-mov');
+    btnLoading(btn, true);
+    try {
+      await api.caixa.movimento({
+        sessao_id: sessaoMovimentoAtual.id,
+        tipo: tipoMovimentoAtual,
+        forma_pagamento,
+        valor, motivo,
+        vendedor_id: (getVendedor() || {}).id,
+      });
+      modalMovimento.hide();
+      showToast(`${tipoMovimentoAtual === 'sangria' ? 'Sangria' : 'Acréscimo'} de ${fmtMoeda(valor)} (${nomePagamento(forma_pagamento)}) registrado`, 'success');
+      await carregarDados();
+    } catch(e) {
+      showToast(e.message, 'error');
+    } finally {
+      btnLoading(btn, false);
+    }
+  }
+
+  // ── Detalhe Sessão ──
+  async function verDetalhe(sessao_id) {
+    modalDetalhe.show();
+    document.getElementById('detalhe-body').innerHTML = '<div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></div>';
+    try {
+      const r = await api.caixa.resumo(sessao_id);
+      _detalheAtual = r;
+      const saldo = (r.saldo_final != null ? r.saldo_final : 0);
+      const statusBadge = r.status === 'aberto'
+        ? '<span class="badge bg-success"><i class="bi bi-unlock-fill me-1"></i>Aberto</span>'
+        : '<span class="badge bg-secondary"><i class="bi bi-lock-fill me-1"></i>Fechado</span>';
+      document.getElementById('detalhe-body').innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0">${r.vendedor_nome || 'Vendedor #' + r.vendedor_id}</h6>
+          ${statusBadge}
+        </div>
+        <table class="table table-sm mb-3">
+          <tbody>
+            <tr><td class="text-muted">Abertura</td><td class="text-end">${fmtData(r.aberto_em)}</td></tr>
+            ${r.fechado_em ? `<tr><td class="text-muted">Fechamento</td><td class="text-end">${fmtData(r.fechado_em)}</td></tr>` : ''}
+            <tr><td class="text-muted">Fundo de Caixa</td><td class="text-end">${fmtMoeda(r.valor_inicial||0)}</td></tr>
+            <tr><td class="text-muted">Total de Vendas</td><td class="text-end text-success fw-semibold">${fmtMoeda(r.total_vendas_real||0)} <small>(${r.qtd_vendas||0} vendas)</small></td></tr>
+            ${(r.total_dinheiro_real||0)>0 ? `<tr><td class="text-muted ps-3">↳ Dinheiro</td><td class="text-end text-muted">${fmtMoeda(r.total_dinheiro_real)}</td></tr>` : ''}
+            ${(r.total_acrescimo_real||0)>0 ? `<tr><td class="text-muted">Acréscimos</td><td class="text-end text-info">+ ${fmtMoeda(r.total_acrescimo_real)}</td></tr>` : ''}
+            ${(r.total_sangria_real||0)>0   ? `<tr><td class="text-muted">Sangrias</td><td class="text-end text-danger">- ${fmtMoeda(r.total_sangria_real)}</td></tr>` : ''}
+            <tr class="table-success"><td class="fw-bold">Saldo Final</td><td class="text-end fw-bold">${fmtMoeda(saldo)}</td></tr>
+            ${r.observacoes ? `<tr><td class="text-muted">Obs.</td><td class="text-end text-muted fst-italic">${r.observacoes}</td></tr>` : ''}
+          </tbody>
+        </table>
+        ${r.saldo_por_forma && Object.keys(r.saldo_por_forma).length > 0 ? (() => {
+          const icones = { dinheiro:'💵', pix:'📱', debito:'💳', credito:'💳', boleto:'📄', cheque:'🏦', fiado:'🤝' };
+          const formasOrdem = ['dinheiro','pix','debito','credito','boleto','cheque','fiado'];
+          const linhas = formasOrdem
+            .filter(f => r.saldo_por_forma[f] != null && (r.saldo_por_forma[f] !== 0 || f === 'dinheiro'))
+            .map(f => `<tr>
+              <td>${icones[f]||'💰'} ${nomePagamento(f)}</td>
+              <td class="text-end fw-semibold ${r.saldo_por_forma[f] < 0 ? 'text-danger' : 'text-success'}">${fmtMoeda(r.saldo_por_forma[f])}</td>
+            </tr>`).join('');
+          return linhas ? `
+            <h6 class="small fw-semibold text-muted mt-3">DISPONÍVEL POR FORMA DE PAGAMENTO</h6>
+            <table class="table table-sm table-bordered mb-3">
+              <thead class="table-light"><tr><th>Forma</th><th class="text-end">Saldo</th></tr></thead>
+              <tbody>${linhas}</tbody>
+            </table>` : '';
+        })() : ''}
+        ${r.movimentos && r.movimentos.length > 0 ? `
+          <h6 class="small fw-semibold text-muted">MOVIMENTOS (SANGRIAS / ACRÉSCIMOS)</h6>
+          <table class="table table-sm">
+            <thead><tr><th>Tipo</th><th>Forma</th><th>Motivo</th><th class="text-end">Valor</th><th>Hora</th></tr></thead>
+            <tbody>
+              ${r.movimentos.map(m => `
+                <tr>
+                  <td><span class="badge ${m.tipo==='sangria'?'bg-warning text-dark':'bg-info text-dark'}">${m.tipo==='sangria'?'↓ Sangria':'↑ Acréscimo'}</span></td>
+                  <td class="small">${nomePagamento(m.forma_pagamento||'dinheiro')}</td>
+                  <td class="text-muted small">${m.motivo||'—'}</td>
+                  <td class="text-end ${m.tipo==='sangria'?'text-danger':'text-info'} fw-semibold">${m.tipo==='sangria'?'-':'+'} ${fmtMoeda(m.valor)}</td>
+                  <td class="text-muted small">${fmtData(m.criado_em)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>` : ''}
+      `;
+    } catch(e) {
+      document.getElementById('detalhe-body').innerHTML = `<p class="text-danger">${e.message}</p>`;
+    }
+  }
+
+  function exportarDetalheExcel() {
+    if (!_detalheAtual) return;
+    const r = _detalheAtual;
+    const saldo = r.saldo_final != null ? r.saldo_final : 0;
+    const wb = XLSX.utils.book_new();
+
+    // Aba 1: Resumo
+    const resumo = [
+      ['Vendedor', r.vendedor_nome || ''],
+      ['Status', r.status === 'aberto' ? 'Aberto' : 'Fechado'],
+      ['Abertura', r.aberto_em ? new Date(r.aberto_em).toLocaleString('pt-BR') : ''],
+      ['Fechamento', r.fechado_em ? new Date(r.fechado_em).toLocaleString('pt-BR') : '—'],
+      ['Fundo de Caixa', r.valor_inicial || 0],
+      ['Total de Vendas', r.total_vendas_real || 0],
+      ['Nº de Vendas', r.qtd_vendas || 0],
+      ['Acréscimos', r.total_acrescimo_real || 0],
+      ['Sangrias', r.total_sangria_real || 0],
+      ['Saldo Final', saldo],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumo), 'Resumo');
+
+    // Aba 2: Saldo por Forma
+    if (r.saldo_por_forma && Object.keys(r.saldo_por_forma).length > 0) {
+      const formas = [['Forma de Pagamento', 'Saldo']];
+      for (const [forma, val] of Object.entries(r.saldo_por_forma)) {
+        formas.push([nomePagamento(forma), val]);
+      }
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(formas), 'Por Forma');
+    }
+
+    // Aba 3: Movimentos
+    if (r.movimentos && r.movimentos.length > 0) {
+      const movs = [['Tipo', 'Forma', 'Valor', 'Motivo', 'Hora']];
+      r.movimentos.forEach(m => movs.push([
+        m.tipo === 'sangria' ? 'Sangria' : 'Acréscimo',
+        nomePagamento(m.forma_pagamento || 'dinheiro'),
+        m.tipo === 'sangria' ? -m.valor : m.valor,
+        m.motivo || '',
+        m.criado_em ? new Date(m.criado_em).toLocaleString('pt-BR') : '',
+      ]));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(movs), 'Movimentos');
+    }
+
+    const nome = (r.vendedor_nome || 'caixa').replace(/\s+/g, '_');
+    const data = r.aberto_em ? new Date(r.aberto_em).toLocaleDateString('pt-BR').replace(/\//g,'-') : '';
+    XLSX.writeFile(wb, `caixa_${nome}_${data}.xlsx`);
+  }
+
+  function imprimirDetalhe() {
+    const conteudo = document.getElementById('detalhe-body').innerHTML;
+    const w = window.open('', '_blank', 'width=500,height=700');
+    w.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="UTF-8"><title>Relatório de Caixa</title>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+      <style>
+        body { padding: 20px; font-size: 13px; }
+        @media print { body { padding: 0; } }
+      </style>
+    </head><body>
+      <h5 class="fw-bold mb-3"><i>Relatório de Caixa — FastPOS</i></h5>
+      ${conteudo}
+      <script>window.onload=()=>{window.print();window.close();}<\/script>
+    </body></html>`);
+    w.document.close();
+  }
+
+  init();
+</script>
+</body>
+</html>

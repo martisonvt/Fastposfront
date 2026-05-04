@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mesas — FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    .mesa-card {
+      border-radius: 14px;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      border: 2px solid transparent;
+      min-height: 130px;
+      position: relative;
+    }
+    .mesa-card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(0,0,0,.13); }
+    .mesa-card.livre        { background: #d4f4e8; border-color: #6fcf97; }
+    .mesa-card.ocupada      { background: #fde8e8; border-color: #e57373; }
+    .mesa-card.aguardando_pagamento { background: #fff9e0; border-color: #f5c518; }
+    .mesa-card.reservada    { background: #e0eeff; border-color: #74a9e8; }
+    .mesa-card.bloqueada    { background: #e9e9e9; border-color: #bbb; cursor: not-allowed; }
+    .mesa-numero { font-size: 1.9rem; font-weight: 700; line-height: 1; }
+    .mesa-nome   { font-size: .78rem; color: #555; }
+    .mesa-info   { font-size: .75rem; color: #444; }
+    .badge-status { font-size: .65rem; }
+    .btn-mesa-ger { position: absolute; bottom: 6px; right: 6px; font-size: .7rem; padding: 2px 7px; }
+    #lista-produtos-modal { max-height: 280px; overflow-y: auto; }
+    .produto-linha { cursor: pointer; transition: background .1s; }
+    .produto-linha:hover { background: #f0f4ff; }
+    .calc-input { cursor: pointer; background: #fff !important; }
+    .calc-input.calc-active { border-color: #0d6efd !important; box-shadow: 0 0 0 .2rem rgba(13,110,253,.2) !important; }
+  </style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+
+<div class="main-content">
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-grid-3x3 me-2"></i>Mesas</h2>
+      <p class="text-muted">Mapa de mesas e comandas</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-sm btn-outline-secondary" onclick="carregarMesas()">
+        <i class="bi bi-arrow-clockwise"></i> Atualizar
+      </button>
+      <button id="btn-gerenciar" class="btn btn-sm btn-pdv d-none" onclick="abrirGerenciar(null)">
+        <i class="bi bi-plus-lg me-1"></i>Nova Mesa
+      </button>
+    </div>
+  </div>
+
+  <!-- Tela bloqueada -->
+  <div id="tela-bloqueada" style="display:none" class="text-center py-5">
+    <i class="bi bi-lock-fill text-warning" style="font-size:3rem"></i>
+    <h4 class="mt-3">Módulo de Mesas</h4>
+    <p class="text-muted">Este módulo faz parte do <strong>Add-on Restaurante</strong>.<br>
+    Ative nas configurações da sua empresa para liberar o acesso.</p>
+  </div>
+
+  <!-- Legenda -->
+  <div id="legenda" class="d-flex gap-3 mb-3 flex-wrap" style="display:none!important">
+    <span><span class="badge rounded-pill" style="background:#6fcf97">●</span> Livre</span>
+    <span><span class="badge rounded-pill" style="background:#e57373">●</span> Ocupada</span>
+    <span><span class="badge rounded-pill" style="background:#f5c518">●</span> Aguard. Pagamento</span>
+    <span><span class="badge rounded-pill" style="background:#74a9e8">●</span> Reservada</span>
+    <span><span class="badge rounded-pill" style="background:#bbb">●</span> Bloqueada</span>
+  </div>
+
+  <!-- Tela principal -->
+  <div id="tela-principal">
+    <div id="grid-mesas" class="row g-3"></div>
+    <div id="sem-mesas" class="text-center text-muted py-5 d-none">
+      <i class="bi bi-grid-3x3" style="font-size:2.5rem"></i>
+      <p class="mt-2">Nenhuma mesa cadastrada.<br>Clique em <strong>Nova Mesa</strong> para começar.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: Abrir Comanda (mesa livre)
+════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalAbrirComanda" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-play-circle me-2 text-success"></i>Abrir Mesa <span id="abrir-mesa-label"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Garçom *</label>
+          <select id="abrir-garcom" class="form-select"></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nº de Pessoas</label>
+          <input type="number" id="abrir-pessoas" class="form-control" value="1" min="1">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Observações</label>
+          <input type="text" id="abrir-obs" class="form-control" placeholder="Ex: mesa da janela, aniversário...">
+        </div>
+      </div>
+      <div class="modal-footer" id="abrir-comanda-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button id="btn-reservar-mesa" class="btn btn-outline-primary d-none" onclick="abrirReservarMesa()">
+          <i class="bi bi-calendar-check me-1"></i>Reservar
+        </button>
+        <button id="btn-cancelar-reserva" class="btn btn-outline-warning d-none" onclick="cancelarReserva()">
+          <i class="bi bi-calendar-x me-1"></i>Cancelar Reserva
+        </button>
+        <button class="btn btn-success fw-bold" onclick="confirmarAbrirComanda()">
+          <i class="bi bi-play-fill me-1"></i>Abrir Comanda
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: Comanda Aberta
+════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalComanda" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0"><i class="bi bi-receipt me-2"></i>Mesa <span id="comanda-mesa-label"></span></h5>
+          <small class="text-muted" id="comanda-info-header"></small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-2">
+        <!-- Itens -->
+        <div id="comanda-itens-lista" class="mb-3"></div>
+
+        <!-- Totais -->
+        <div class="card border-0 bg-light p-2 mb-2">
+          <div class="d-flex justify-content-between small">
+            <span>Subtotal</span><span id="comanda-subtotal">R$ 0,00</span>
+          </div>
+          <div class="d-flex justify-content-between small">
+            <span>Desconto</span><span id="comanda-desconto">R$ 0,00</span>
+          </div>
+          <div class="d-flex justify-content-between small">
+            <span>Taxa serviço (<span id="comanda-taxa-pct">0</span>%)</span><span id="comanda-taxa">R$ 0,00</span>
+          </div>
+          <div class="d-flex justify-content-between fw-bold border-top pt-1 mt-1">
+            <span>TOTAL</span><span id="comanda-total" class="text-success">R$ 0,00</span>
+          </div>
+        </div>
+
+        <!-- Botão adicionar item -->
+        <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="abrirAdicionarItem()">
+          <i class="bi bi-plus-lg me-1"></i>Adicionar Item
+        </button>
+      </div>
+      <div class="modal-footer flex-wrap gap-2">
+        <button class="btn btn-outline-secondary btn-sm" onclick="abrirTransferir()">
+          <i class="bi bi-arrow-left-right me-1"></i>Transferir
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="abrirJuntar()">
+          <i class="bi bi-diagram-3 me-1"></i>Juntar
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="imprimirPreConta()">
+          <i class="bi bi-printer me-1"></i>Pré-conta
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="abrirDividirConta()">
+          <i class="bi bi-people me-1"></i>Dividir
+        </button>
+        <button class="btn btn-outline-warning btn-sm" onclick="aguardarPagamento()">
+          <i class="bi bi-hourglass-split me-1"></i>Aguardar Pagamento
+        </button>
+        <button class="btn btn-outline-danger btn-sm" onclick="cancelarComanda()">
+          <i class="bi bi-x-circle me-1"></i>Cancelar
+        </button>
+        <button class="btn btn-success fw-bold" onclick="abrirFecharConta()">
+          <i class="bi bi-cash-coin me-1"></i>Fechar Conta
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: Adicionar Item
+════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalAddItem" tabindex="-1" style="z-index:1065">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Adicionar Item</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="item-busca" class="form-control mb-2" placeholder="Buscar produto..."
+               oninput="filtrarProdutos()">
+        <div id="lista-produtos-modal"></div>
+        <hr class="my-2">
+        <div class="row g-2">
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Item selecionado</label>
+            <input type="text" id="item-nome" class="form-control form-control-sm" placeholder="Nome do item">
+          </div>
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Qtd</label>
+            <input type="number" id="item-qtd" class="form-control form-control-sm" value="1" min="0.1" step="0.1">
+          </div>
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Valor Unit.</label>
+            <input type="number" id="item-valor" class="form-control form-control-sm" value="0" min="0" step="0.01">
+          </div>
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Subtotal</label>
+            <input type="text" id="item-subtotal" class="form-control form-control-sm" readonly>
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Observação do item</label>
+            <input type="text" id="item-obs" class="form-control form-control-sm" placeholder="Ex: sem cebola">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary fw-bold" onclick="confirmarAddItem()">
+          <i class="bi bi-plus-lg me-1"></i>Adicionar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: Fechar Conta
+════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalFecharConta" tabindex="-1" style="z-index:1065">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-cash-coin me-2 text-success"></i>Fechar Conta</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center mb-3">
+          <div class="text-muted small">Total a pagar</div>
+          <div id="fechar-total" class="fw-bold text-success" style="font-size:2rem">R$ 0,00</div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-semibold">Desconto</label>
+            <div class="input-group input-group-sm">
+              <button class="btn btn-outline-secondary px-2" id="btn-modo-desconto"
+                      onclick="toggleModoDesconto()" style="min-width:38px;font-size:.78rem;font-weight:700">R$</button>
+              <input type="text" id="fechar-desconto" class="form-control form-control-sm calc-input text-end"
+                     readonly onclick="setCalcTarget('desconto')" placeholder="0,00">
+            </div>
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-semibold">Taxa serviço</label>
+            <div class="input-group input-group-sm">
+              <input type="text" id="fechar-taxa-pct" class="form-control form-control-sm calc-input text-end"
+                     readonly onclick="setCalcTarget('taxa')" placeholder="0,00">
+              <span class="input-group-text">%</span>
+            </div>
+          </div>
+        </div>
+        <!-- Pagamentos adicionados -->
+        <div id="fechar-lista-pgto" class="mb-2"></div>
+
+        <!-- Box: restante a pagar -->
+        <div id="fechar-box-restante" class="px-2 py-1 rounded mb-2" style="background:#f8f9fa;border:1px solid #dee2e6">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-muted">Restante a pagar:</span>
+            <span class="fw-bold" id="fechar-restante-display">R$ 0,00</span>
+          </div>
+        </div>
+
+        <!-- Selecionar forma -->
+        <div class="border rounded p-2 mb-2" style="background:#fafafa">
+          <div class="small fw-semibold text-muted mb-2"><i class="bi bi-plus-circle me-1"></i>Adicionar pagamento</div>
+          <div class="d-flex flex-wrap gap-1 mb-2" id="fechar-formas-btns">
+            <button class="btn btn-sm btn-outline-secondary fechar-forma-btn" onclick="selecionarFecharForma('dinheiro',this)"><i class="bi bi-cash me-1"></i>Dinheiro</button>
+            <button class="btn btn-sm btn-outline-secondary fechar-forma-btn" onclick="selecionarFecharForma('pix',this)"><i class="bi bi-qr-code me-1"></i>PIX</button>
+            <button class="btn btn-sm btn-outline-secondary fechar-forma-btn" onclick="selecionarFecharForma('debito',this)"><i class="bi bi-credit-card me-1"></i>Débito</button>
+            <button class="btn btn-sm btn-outline-secondary fechar-forma-btn" onclick="selecionarFecharForma('credito',this)"><i class="bi bi-credit-card-2-front me-1"></i>Crédito</button>
+          </div>
+          <div id="fechar-nova-campos" style="display:none">
+            <div class="input-group input-group-sm mb-1">
+              <input type="text" id="fechar-nova-valor" class="form-control calc-input text-end"
+                     readonly onclick="setCalcTargetFechar()" placeholder="0,00">
+              <button class="btn btn-primary" onclick="adicionarFecharPgto()"><i class="bi bi-plus-lg me-1"></i>Adicionar</button>
+            </div>
+            <!-- troco dinheiro -->
+            <div id="fechar-campo-dinheiro" style="display:none" class="p-2 rounded text-center mb-1" style="background:#e8f5e9;font-size:.85rem">
+              <span class="text-muted small">Troco: </span>
+              <span class="fw-bold text-success" id="fechar-troco">R$ 0,00</span>
+            </div>
+            <!-- parcelas crédito -->
+            <div id="fechar-campo-credito" style="display:none" class="mb-1">
+              <select id="fechar-parcelas" class="form-select form-select-sm">
+                <option value="1">1x sem juros</option>
+                <option value="2">2x</option>
+                <option value="3">3x</option>
+                <option value="6">6x</option>
+                <option value="12">12x</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button id="btn-fechar-confirmar" class="btn btn-success fw-bold" onclick="confirmarFecharConta()">
+          <i class="bi bi-check-circle me-1"></i>Confirmar Fechamento
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: Gerenciar Mesa (criar/editar)
+════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalGerenciar" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ger-modal-titulo">Nova Mesa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="ger-id">
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small fw-semibold">Número *</label>
+            <input type="number" id="ger-numero" class="form-control" min="1">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-semibold">Nome / Apelido</label>
+            <input type="text" id="ger-nome" class="form-control" placeholder="Ex: Varanda">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-semibold">Capacidade</label>
+            <input type="number" id="ger-capacidade" class="form-control" value="4" min="1">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-semibold">Setor</label>
+            <input type="text" id="ger-setor" class="form-control" placeholder="Ex: Salão, Área externa">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <div class="d-flex gap-2">
+          <button id="btn-excluir-mesa" class="btn btn-outline-danger btn-sm d-none" onclick="excluirMesa()">
+            <i class="bi bi-trash me-1"></i>Excluir
+          </button>
+          <button id="btn-bloquear-mesa" class="btn btn-outline-secondary btn-sm d-none" onclick="toggleBloquearMesa()">
+            <i class="bi bi-lock me-1"></i><span id="bloquear-label">Bloquear</span>
+          </button>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-pdv fw-bold" onclick="salvarMesa()">Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: Transferir Mesa
+════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalTransferir" tabindex="-1" style="z-index:1065">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-arrow-left-right me-2"></i>Transferir Mesa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label fw-semibold">Mesa destino (livre)</label>
+        <select id="sel-mesa-destino" class="form-select"></select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary fw-bold" onclick="confirmarTransferir()">Transferir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: Juntar Mesas
+════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalJuntar" tabindex="-1" style="z-index:1065">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-diagram-3 me-2"></i>Juntar Mesas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Os itens da mesa selecionada serão movidos para a mesa atual.</p>
+        <label class="form-label fw-semibold">Mesa origem (ocupada)</label>
+        <select id="sel-mesa-origem" class="form-select"></select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary fw-bold" onclick="confirmarJuntar()">Juntar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: Dividir Conta por Item
+════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalDividirConta" tabindex="-1" style="z-index:1065">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-people me-2"></i>Dividir Conta</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Número de pessoas -->
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <span class="fw-semibold small">Dividir entre:</span>
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm px-3" onclick="ajustarNPessoas(-1)">−</button>
+            <span id="dividir-n-pessoas" class="fw-bold fs-5">2</span>
+            <button class="btn btn-outline-secondary btn-sm px-3" onclick="ajustarNPessoas(1)">+</button>
+            <span class="text-muted small">pessoas</span>
+          </div>
+        </div>
+
+        <!-- Tabela de itens -->
+        <div class="table-responsive mb-3">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Item</th>
+                <th class="text-end">Valor</th>
+                <th class="text-center" style="min-width:110px">Para quem?</th>
+              </tr>
+            </thead>
+            <tbody id="dividir-itens-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Resumo por pessoa -->
+        <div id="dividir-resumo" class="row g-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL: Reservar Mesa
+════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalReservar" tabindex="-1" style="z-index:1065">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calendar-check me-2 text-primary"></i>Reservar Mesa <span id="reservar-mesa-label"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Nome do cliente *</label>
+          <input type="text" id="reservar-nome" class="form-control form-control-sm" placeholder="Ex: João Silva">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Horário</label>
+          <input type="time" id="reservar-horario" class="form-control form-control-sm">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Nº de pessoas</label>
+          <input type="number" id="reservar-pessoas" class="form-control form-control-sm" value="2" min="1">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary fw-bold" onclick="confirmarReserva()">
+          <i class="bi bi-calendar-check me-1"></i>Reservar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script src="/js/components.js?v=2"></script>
+<script src="/js/offline.js?v=1"></script>
+<script>
+document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/mesas.html');
+
+// ── Estado global ─────────────────────────────────────────────────────────────
+let _mesas = [];
+let _produtos = [];
+let _vendedores = [];
+let _mesaAtual = null;    // mesa selecionada
+let _comandaAtual = null; // comanda aberta da mesa selecionada
+let _itemSelecionado = null; // produto selecionado no modal addItem
+
+// Calculadora — Fechar Conta
+let _descontoDigits = 0;   // centavos (modo R$) ou centésimos de % (modo %)
+let _taxaDigits     = 0;   // centésimos de %
+let _descontoModo   = 'R$'; // 'R$' | '%'
+let _calcTarget     = null; // 'desconto' | 'taxa' | null
+
+// Modais Bootstrap
+let modalAbrirComanda, modalComanda, modalAddItem, modalFecharConta,
+    modalGerenciar, modalTransferir, modalJuntar, modalDividirConta, modalReservar;
+
+// Dividir conta
+let _dividirN = 2;
+const _dividirAtribuicoes = {};
+
+// Multi-pagamento Fechar Conta
+let _fecharPagamentos = [];
+let _fecharFormaSel   = null;
+let _fecharNovaValDigits = 0;
+
+// ── Utilitários ───────────────────────────────────────────────────────────────
+function fmtMoeda(v) {
+  return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function tempoOcupacao(abertura_em) {
+  const diff = Math.floor((Date.now() - new Date(abertura_em)) / 1000);
+  const h = Math.floor(diff / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  return h > 0 ? `${h}h ${m}min` : `${m}min`;
+}
+
+function badgePreparoClass(status) {
+  const map = { pendente: 'bg-secondary', em_preparo: 'bg-warning text-dark', pronto: 'bg-success', entregue: 'bg-primary' };
+  return map[status] || 'bg-secondary';
+}
+
+function labelPreparo(status) {
+  const map = { pendente: 'Pendente', em_preparo: 'Em preparo 🍳', pronto: 'Pronto ✓', entregue: 'Entregue' };
+  return map[status] || status;
+}
+
+async function avancarStatusPreparo(itemId, statusAtual) {
+  const sequencia = ['pendente', 'em_preparo', 'pronto', 'entregue'];
+  const idx = sequencia.indexOf(statusAtual);
+  if (idx === -1 || idx === sequencia.length - 1) return; // entregue não avança
+  const proximoStatus = sequencia[idx + 1];
+  try {
+    await api.mesas.editarItem(_mesaAtual.id, itemId, { status_preparo: proximoStatus });
+    _comandaAtual = await api.mesas.comanda(_mesaAtual.id);
+    renderComanda();
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+function labelStatus(status) {
+  const map = {
+    livre: '<span class="badge bg-success badge-status">Livre</span>',
+    ocupada: '<span class="badge bg-danger badge-status">Ocupada</span>',
+    aguardando_pagamento: '<span class="badge bg-warning text-dark badge-status">Aguard. Pgto</span>',
+    reservada: '<span class="badge bg-primary badge-status">Reservada</span>',
+    bloqueada: '<span class="badge bg-secondary badge-status">Bloqueada</span>',
+  };
+  return map[status] || status;
+}
+
+function showToast(msg, tipo='success') {
+  const t = document.createElement('div');
+  t.className = `alert alert-${tipo} position-fixed bottom-0 end-0 m-3 shadow`;
+  t.style.cssText = 'z-index:9999;min-width:220px;animation:fadeIn .2s';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  modalAbrirComanda = new bootstrap.Modal(document.getElementById('modalAbrirComanda'));
+  modalComanda      = new bootstrap.Modal(document.getElementById('modalComanda'));
+  modalAddItem      = new bootstrap.Modal(document.getElementById('modalAddItem'));
+  modalFecharConta  = new bootstrap.Modal(document.getElementById('modalFecharConta'));
+  modalGerenciar    = new bootstrap.Modal(document.getElementById('modalGerenciar'));
+  modalTransferir   = new bootstrap.Modal(document.getElementById('modalTransferir'));
+  modalJuntar       = new bootstrap.Modal(document.getElementById('modalJuntar'));
+  modalDividirConta = new bootstrap.Modal(document.getElementById('modalDividirConta'));
+  modalReservar     = new bootstrap.Modal(document.getElementById('modalReservar'));
+
+  // Calculadora — fechar conta
+  document.getElementById('modalFecharConta').addEventListener('hidden.bs.modal', () => {
+    _calcTarget = null;
+    _fecharFormaSel = null;
+    _fecharNovaValDigits = 0;
+    document.querySelectorAll('.calc-input').forEach(el => el.classList.remove('calc-active'));
+  });
+  // Limpa target se o foco sair dos inputs de calculadora (ex: clicou no select de pagamento)
+  document.getElementById('modalFecharConta').addEventListener('focusin', e => {
+    if (!e.target.classList.contains('calc-input')) {
+      _calcTarget = null;
+      document.querySelectorAll('.calc-input').forEach(el => el.classList.remove('calc-active'));
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if (!_calcTarget) return;
+    if (!document.getElementById('modalFecharConta').classList.contains('show')) { _calcTarget = null; return; }
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      const d = parseInt(e.key);
+      if (_calcTarget === 'desconto')         { _descontoDigits      = _descontoDigits      * 10 + d; _displayDesconto(); }
+      else if (_calcTarget === 'taxa')        { _taxaDigits          = _taxaDigits          * 10 + d; _displayTaxa(); }
+      else if (_calcTarget === 'fechar-nova') { _fecharNovaValDigits = _fecharNovaValDigits * 10 + d; _displayFecharNovaVal(); }
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      if (_calcTarget === 'desconto')         { _descontoDigits      = Math.floor(_descontoDigits      / 10); _displayDesconto(); }
+      else if (_calcTarget === 'taxa')        { _taxaDigits          = Math.floor(_taxaDigits          / 10); _displayTaxa(); }
+      else if (_calcTarget === 'fechar-nova') { _fecharNovaValDigits = Math.floor(_fecharNovaValDigits / 10); _displayFecharNovaVal(); }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      if (_calcTarget === 'fechar-nova') adicionarFecharPgto();
+      else setCalcTarget(_calcTarget === 'desconto' ? 'taxa' : 'desconto');
+    } else if (e.key === 'Enter' && _calcTarget === 'fechar-nova') {
+      e.preventDefault();
+      adicionarFecharPgto();
+    }
+  });
+
+  // Backdrop fix para modais sobrepostos
+  ['modalAddItem','modalFecharConta','modalTransferir','modalJuntar','modalDividirConta','modalReservar'].forEach(id => {
+    document.getElementById(id).addEventListener('show.bs.modal', function() {
+      setTimeout(() => {
+        const bds = document.querySelectorAll('.modal-backdrop');
+        if (bds.length >= 2) bds[bds.length - 1].style.zIndex = '1062';
+      }, 10);
+    });
+  });
+
+  const v = getVendedor();
+  const admin = v && v.is_admin === true;
+  let perms = []; try { perms = JSON.parse(v?.permissoes || '[]'); } catch(e){}
+  const podeMesas = admin || perms.includes('mesas');
+
+  if (!podeMesas) {
+    document.getElementById('tela-bloqueada').style.display = '';
+    document.getElementById('tela-principal').style.display = 'none';
+    return;
+  }
+
+  // Verificar add-on na empresa
+  try {
+    const empresa = await api.empresas.minha();
+    let modulos = [];
+    try { modulos = JSON.parse(empresa.modulos_ativos || '[]'); } catch(e) {}
+    if (!modulos.includes('mesas')) {
+      document.getElementById('tela-bloqueada').style.display = '';
+      document.getElementById('tela-principal').style.display = 'none';
+      return;
+    }
+  } catch(e) {
+    // dev local sem verificação de empresa — continua
+  }
+
+  if (admin) document.getElementById('btn-gerenciar').classList.remove('d-none');
+  document.getElementById('legenda').style.display = '';
+
+  // Carregar dados auxiliares em paralelo (com fallback offline)
+  try {
+    [_vendedores, _produtos] = await Promise.all([
+      api.vendedores.listar(),
+      api.produtos.listar({ ativo: true, arquivado: false }),
+    ]);
+    if (window.OfflinePDV) {
+      if (_vendedores.length) OfflinePDV.salvarCache('vendedores', _vendedores);
+      if (_produtos.length)   OfflinePDV.salvarCache('produtos', _produtos);
+    }
+  } catch(e) {
+    if (window.OfflinePDV) {
+      _vendedores = await OfflinePDV.getVendedoresCache().catch(() => []);
+      _produtos   = await OfflinePDV.getProdutosCache().catch(() => []);
+    }
+  }
+
+  await carregarMesas();
+
+  // Auto-refresh a cada 30s
+  setInterval(carregarMesas, 30000);
+}
+
+// ── Carregar mesas ────────────────────────────────────────────────────────────
+async function carregarMesas() {
+  try {
+    _mesas = await api.mesas.listar();
+    renderMesas();
+    // Cache-on-load: salva para uso offline
+    if (window.OfflinePDV && _mesas.length) OfflinePDV.salvarCache('mesas', _mesas);
+  } catch(e) {
+    // Offline — tenta carregar do cache
+    if (window.OfflinePDV && OfflinePDV.isOffline()) {
+      _mesas = await OfflinePDV.getMesasCache().catch(() => []);
+      renderMesas();
+      if (!_mesas.length) showToast('Sem mesas em cache offline', 'warning');
+    } else {
+      showToast(e.message, 'danger');
+    }
+  }
+}
+
+function renderMesas() {
+  const grid = document.getElementById('grid-mesas');
+  const sem  = document.getElementById('sem-mesas');
+  const v = getVendedor();
+  const admin = v && v.is_admin === true;
+
+  if (!_mesas.length) {
+    grid.innerHTML = '';
+    sem.classList.remove('d-none');
+    return;
+  }
+  sem.classList.add('d-none');
+
+  grid.innerHTML = _mesas.map(m => {
+    const com = m.comanda_ativa;
+    const info = com ? `
+      <div class="mesa-info mt-1">
+        <div><i class="bi bi-person-fill me-1"></i>${com.garcom_nome || '—'}</div>
+        <div><i class="bi bi-people-fill me-1"></i>${com.quantidade_pessoas} pessoa(s)</div>
+        <div><i class="bi bi-clock me-1"></i>${tempoOcupacao(com.abertura_em)}</div>
+        <div class="fw-bold text-danger">${fmtMoeda(com.valor_total)}</div>
+      </div>
+    ` : m.status === 'reservada' && m.reserva_nome ? `
+      <div class="mesa-info mt-1">
+        <div><i class="bi bi-person me-1"></i>${m.reserva_nome}</div>
+        ${m.reserva_horario ? `<div><i class="bi bi-clock me-1"></i>${m.reserva_horario}</div>` : ''}
+        ${m.reserva_pessoas ? `<div><i class="bi bi-people me-1"></i>${m.reserva_pessoas} pessoa(s)</div>` : ''}
+      </div>` : `<div class="mesa-info mt-2 text-muted small">Clique para abrir</div>`;
+
+    const btnGer = admin ? `<button class="btn btn-light btn-mesa-ger" onclick="event.stopPropagation();abrirGerenciar(${m.id})" title="Editar mesa"><i class="bi bi-pencil-fill"></i></button>` : '';
+
+    return `
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="mesa-card p-3 ${m.status}" onclick="clicarMesa(${m.id})">
+          ${btnGer}
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="mesa-numero">${m.numero_mesa}</div>
+              ${m.nome_mesa ? `<div class="mesa-nome">${m.nome_mesa}</div>` : ''}
+            </div>
+            ${labelStatus(m.status)}
+          </div>
+          <div class="mesa-info small text-muted"><i class="bi bi-people me-1"></i>${m.capacidade} lugares${m.setor ? ` • ${m.setor}` : ''}</div>
+          ${info}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Clicar em mesa ────────────────────────────────────────────────────────────
+async function clicarMesa(id) {
+  _mesaAtual = _mesas.find(m => m.id === id);
+  if (!_mesaAtual) return;
+
+  const v = getVendedor();
+  const admin = v && v.is_admin === true;
+
+  if (_mesaAtual.status === 'bloqueada') {
+    if (admin) abrirGerenciar(_mesaAtual.id);
+    return;
+  }
+
+  if (_mesaAtual.status === 'livre' || _mesaAtual.status === 'reservada') {
+    abrirModalAbrir();
+  } else {
+    await abrirModalComanda();
+  }
+}
+
+// ── Modal: Abrir Comanda ──────────────────────────────────────────────────────
+function abrirModalAbrir() {
+  const isReservada = _mesaAtual.status === 'reservada';
+  const titulo = document.querySelector('#modalAbrirComanda .modal-title');
+  titulo.innerHTML = isReservada
+    ? `<i class="bi bi-calendar-check me-2 text-primary"></i>Mesa Reservada <span id="abrir-mesa-label"></span>`
+    : `<i class="bi bi-play-circle me-2 text-success"></i>Abrir Mesa <span id="abrir-mesa-label"></span>`;
+
+  document.getElementById('abrir-mesa-label').textContent = `${_mesaAtual.numero_mesa}${_mesaAtual.nome_mesa ? ' — ' + _mesaAtual.nome_mesa : ''}`;
+  document.getElementById('abrir-pessoas').value = 1;
+  document.getElementById('abrir-obs').value = '';
+
+  const sel = document.getElementById('abrir-garcom');
+  sel.innerHTML = _vendedores.filter(v => v.ativo).map(v =>
+    `<option value="${v.id}">${v.nome}</option>`
+  ).join('');
+
+  // Pré-selecionar vendedor logado
+  const me = getVendedor();
+  if (me) sel.value = me.id;
+
+  // Mostrar/ocultar botões de reserva
+  document.getElementById('btn-reservar-mesa').classList.toggle('d-none', isReservada);
+  document.getElementById('btn-cancelar-reserva').classList.toggle('d-none', !isReservada);
+
+  modalAbrirComanda.show();
+}
+
+async function confirmarAbrirComanda() {
+  if (_bloqueadoOffline()) return;
+  const garcom_id = parseInt(document.getElementById('abrir-garcom').value);
+  const quantidade_pessoas = parseInt(document.getElementById('abrir-pessoas').value) || 1;
+  const observacoes = document.getElementById('abrir-obs').value.trim() || null;
+  try {
+    await api.mesas.abrirComanda(_mesaAtual.id, { mesa_id: _mesaAtual.id, garcom_id, quantidade_pessoas, observacoes });
+    modalAbrirComanda.hide();
+    showToast(`Mesa ${_mesaAtual.numero_mesa} aberta!`, 'success');
+    await carregarMesas();
+    // Abrir automaticamente a comanda
+    _mesaAtual = _mesas.find(m => m.id === _mesaAtual.id);
+    await abrirModalComanda();
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+// ── Modal: Comanda Aberta ─────────────────────────────────────────────────────
+async function abrirModalComanda() {
+  try {
+    _comandaAtual = await api.mesas.comanda(_mesaAtual.id);
+  } catch(e) {
+    showToast(e.message, 'danger');
+    return;
+  }
+  renderComanda();
+  modalComanda.show();
+}
+
+function renderComanda() {
+  const m = _mesaAtual;
+  const c = _comandaAtual;
+  document.getElementById('comanda-mesa-label').textContent =
+    `${m.numero_mesa}${m.nome_mesa ? ' — ' + m.nome_mesa : ''}`;
+  document.getElementById('comanda-info-header').textContent =
+    `Garçom: ${c.garcom?.nome || '—'} • ${c.quantidade_pessoas} pessoa(s) • Aberta há ${tempoOcupacao(c.abertura_em)}`;
+
+  const lista = document.getElementById('comanda-itens-lista');
+  if (!c.itens.length) {
+    lista.innerHTML = '<p class="text-muted text-center small py-3">Nenhum item ainda.</p>';
+  } else {
+    lista.innerHTML = c.itens.map(it => `
+      <div class="d-flex align-items-center gap-2 py-1 border-bottom">
+        ${it.foto_url ? `<img src="${it.foto_url}" style="width:36px;height:36px;object-fit:cover;border-radius:6px">` : '<div style="width:36px"></div>'}
+        <div class="flex-grow-1">
+          <div class="small fw-semibold">${it.nome}</div>
+          ${it.observacao_item ? `<div class="small text-muted">${it.observacao_item}</div>` : ''}
+        </div>
+        <div class="text-end small">
+          <div>${it.quantidade} × ${fmtMoeda(it.valor_unitario)}</div>
+          <div class="fw-bold">${fmtMoeda(it.subtotal)}</div>
+        </div>
+        <span class="badge ${badgePreparoClass(it.status_preparo)} badge-preparo" style="cursor:pointer;white-space:nowrap"
+              onclick="avancarStatusPreparo(${it.id}, '${it.status_preparo}')" title="Clique para avançar status">
+          ${labelPreparo(it.status_preparo)}
+        </span>
+        <button class="btn btn-link text-danger btn-sm p-0 ms-1" onclick="removerItem(${it.id})" title="Remover">
+          <i class="bi bi-trash3"></i>
+        </button>
+      </div>`).join('');
+  }
+
+  const subtotal = c.itens.reduce((s, i) => s + i.subtotal, 0);
+  document.getElementById('comanda-subtotal').textContent = fmtMoeda(subtotal);
+  document.getElementById('comanda-desconto').textContent = fmtMoeda(c.desconto);
+  document.getElementById('comanda-taxa-pct').textContent = c.taxa_servico_pct;
+  document.getElementById('comanda-taxa').textContent = fmtMoeda(c.taxa_servico);
+  document.getElementById('comanda-total').textContent = fmtMoeda(c.valor_total);
+}
+
+// ── Remover item ──────────────────────────────────────────────────────────────
+async function removerItem(itemId) {
+  if (_bloqueadoOffline()) return;
+  if (!confirm('Remover este item?')) return;
+  try {
+    await api.mesas.removerItem(_mesaAtual.id, itemId);
+    _comandaAtual = await api.mesas.comanda(_mesaAtual.id);
+    renderComanda();
+    await carregarMesas();
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+// ── Modal: Adicionar Item ─────────────────────────────────────────────────────
+function abrirAdicionarItem() {
+  document.getElementById('item-busca').value = '';
+  document.getElementById('item-nome').value = '';
+  document.getElementById('item-qtd').value = '1';
+  document.getElementById('item-valor').value = '0';
+  document.getElementById('item-subtotal').value = '';
+  document.getElementById('item-obs').value = '';
+  _itemSelecionado = null;
+  filtrarProdutos();
+
+  // Listeners subtotal
+  ['item-qtd','item-valor'].forEach(id => {
+    document.getElementById(id).oninput = () => {
+      const q = parseFloat(document.getElementById('item-qtd').value) || 0;
+      const v = parseFloat(document.getElementById('item-valor').value) || 0;
+      document.getElementById('item-subtotal').value = fmtMoeda(q * v);
+    };
+  });
+
+  modalAddItem.show();
+}
+
+function filtrarProdutos() {
+  const busca = document.getElementById('item-busca').value.toLowerCase();
+  const lista = document.getElementById('lista-produtos-modal');
+  const filtrados = _produtos.filter(p =>
+    !p.arquivado && (p.nome.toLowerCase().includes(busca) || (p.codigo_barras || '').includes(busca))
+  ).slice(0, 20);
+
+  lista.innerHTML = filtrados.map(p => `
+    <div class="produto-linha d-flex align-items-center gap-2 px-2 py-1 rounded"
+         onclick="selecionarProduto(${p.id})">
+      ${p.foto_url
+        ? `<img src="${p.foto_url}" style="width:34px;height:34px;object-fit:cover;border-radius:6px;flex-shrink:0">`
+        : `<div style="width:34px;height:34px;border-radius:6px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="bi bi-box-seam text-muted" style="font-size:.7rem"></i></div>`}
+      <span class="small flex-grow-1">${p.nome}</span>
+      <span class="badge bg-light text-dark border flex-shrink-0">${fmtMoeda(p.preco_venda)}</span>
+    </div>`).join('') || '<p class="text-muted small text-center py-2">Nenhum produto encontrado</p>';
+}
+
+function selecionarProduto(id) {
+  _itemSelecionado = _produtos.find(p => p.id === id);
+  if (!_itemSelecionado) return;
+  document.getElementById('item-nome').value = _itemSelecionado.nome;
+  document.getElementById('item-valor').value = _itemSelecionado.preco_venda;
+  const q = parseFloat(document.getElementById('item-qtd').value) || 1;
+  document.getElementById('item-subtotal').value = fmtMoeda(q * _itemSelecionado.preco_venda);
+}
+
+async function confirmarAddItem() {
+  if (_bloqueadoOffline()) return;
+  const nome = document.getElementById('item-nome').value.trim();
+  const qtd  = parseFloat(document.getElementById('item-qtd').value) || 1;
+  const val  = parseFloat(document.getElementById('item-valor').value) || 0;
+  const obs  = document.getElementById('item-obs').value.trim() || null;
+  if (!_itemSelecionado) { showToast('Selecione um produto da lista', 'warning'); return; }
+  if (!nome) { showToast('Informe o nome do item', 'warning'); return; }
+  if (val <= 0) { showToast('Informe o valor do item', 'warning'); return; }
+  try {
+    await api.mesas.addItem(_mesaAtual.id, {
+      produto_id: _itemSelecionado?.id || null,
+      nome, quantidade: qtd, valor_unitario: val, observacao_item: obs,
+    });
+    modalAddItem.hide();
+    _comandaAtual = await api.mesas.comanda(_mesaAtual.id);
+    renderComanda();
+    await carregarMesas();
+    showToast('Item adicionado!', 'success');
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+// ── Cancelar comanda ──────────────────────────────────────────────────────────
+async function cancelarComanda() {
+  if (_bloqueadoOffline()) return;
+  if (!confirm(`Cancelar comanda da Mesa ${_mesaAtual.numero_mesa}? Os itens serão perdidos.`)) return;
+  try {
+    await api.mesas.cancelar(_mesaAtual.id);
+    modalComanda.hide();
+    showToast('Comanda cancelada', 'warning');
+    await carregarMesas();
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+// ── Modal: Fechar Conta ───────────────────────────────────────────────────────
+
+function setCalcTarget(target) {
+  _calcTarget = target;
+  document.querySelectorAll('.calc-input').forEach(el => el.classList.remove('calc-active'));
+  const elId = target === 'desconto' ? 'fechar-desconto' : 'fechar-taxa-pct';
+  document.getElementById(elId).classList.add('calc-active');
+}
+
+function toggleModoDesconto() {
+  _descontoModo = _descontoModo === 'R$' ? '%' : 'R$';
+  _descontoDigits = 0;
+  document.getElementById('btn-modo-desconto').textContent = _descontoModo;
+  _displayDesconto();
+}
+
+function _displayDesconto() {
+  const el = document.getElementById('fechar-desconto');
+  if (_descontoModo === 'R$') {
+    el.value = fmtMoeda(_descontoDigits / 100);
+  } else {
+    el.value = (_descontoDigits / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  }
+  atualizarTotalFechar();
+}
+
+function _displayTaxa() {
+  const el = document.getElementById('fechar-taxa-pct');
+  el.value = (_taxaDigits / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  atualizarTotalFechar();
+}
+
+function abrirFecharConta() {
+  _descontoModo   = 'R$';
+  _descontoDigits = Math.round((_comandaAtual.desconto || 0) * 100);
+  _taxaDigits     = Math.round((_comandaAtual.taxa_servico_pct || 0) * 100);
+  _fecharPagamentos = [];
+  _fecharFormaSel   = null;
+  _fecharNovaValDigits = 0;
+  document.getElementById('btn-modo-desconto').textContent = 'R$';
+  _displayDesconto();
+  _displayTaxa();
+  document.getElementById('fechar-nova-campos').style.display = 'none';
+  document.querySelectorAll('.fechar-forma-btn').forEach(b => b.classList.remove('active'));
+  _fecharRenderPagamentos();
+  setCalcTarget('desconto');
+  modalFecharConta.show();
+}
+
+function atualizarTotalFechar() {
+  if (!_comandaAtual) return;
+  const subtotal = _comandaAtual.itens.reduce((s, i) => s + i.subtotal, 0);
+  const desc = _descontoModo === 'R$'
+    ? _descontoDigits / 100
+    : subtotal * (_descontoDigits / 100) / 100;
+  const taxaPct = _taxaDigits / 100;
+  const taxa = (subtotal - desc) * taxaPct / 100;
+  const total = Math.max(0, subtotal - desc + taxa);
+  document.getElementById('fechar-total').textContent = fmtMoeda(total);
+  _fecharAtualizarRestante();
+}
+
+// ── Multi-pagamento Fechar Conta ──────────────────────────────────────────────
+function _fecharCalcRestante() {
+  const total = _comandaAtual ? _comandaAtual.itens.reduce((s, i) => s + i.subtotal, 0) : 0;
+  const desc = _descontoModo === 'R$' ? _descontoDigits / 100 : total * (_descontoDigits / 100) / 100;
+  const taxa = (total - desc) * (_taxaDigits / 100) / 100;
+  const totalFinal = Math.max(0, total - desc + taxa);
+  const pago = _fecharPagamentos.reduce((s, p) => s + p.valor, 0);
+  return Math.max(0, Math.round((totalFinal - pago) * 100) / 100);
+}
+
+function _fecharAtualizarRestante() {
+  const restante = _fecharCalcRestante();
+  const el  = document.getElementById('fechar-restante-display');
+  const box = document.getElementById('fechar-box-restante');
+  if (!el) return;
+  el.textContent = fmtMoeda(restante);
+  const pago = restante <= 0.005;
+  el.style.color = pago ? '#198754' : '#dc3545';
+  box.style.background  = pago ? '#d1e7dd' : '#f8f9fa';
+  box.style.borderColor = pago ? '#badbcc' : '#dee2e6';
+  const btnConfirmar = document.getElementById('btn-fechar-confirmar');
+  if (btnConfirmar) btnConfirmar.disabled = !pago;
+}
+
+function _fecharRenderPagamentos() {
+  const div = document.getElementById('fechar-lista-pgto');
+  if (!div) return;
+  const icones = { dinheiro:'bi-cash', pix:'bi-qr-code', debito:'bi-credit-card', credito:'bi-credit-card-2-front' };
+  const nomes  = { dinheiro:'Dinheiro', pix:'PIX', debito:'Débito', credito:'Crédito' };
+  if (!_fecharPagamentos.length) {
+    div.innerHTML = '<p class="text-muted small text-center mb-2" style="opacity:.6">Nenhum pagamento adicionado</p>';
+  } else {
+    div.innerHTML = _fecharPagamentos.map((p, i) => `
+      <div class="d-flex justify-content-between align-items-center py-1 px-2 mb-1 rounded"
+           style="background:#eef2ff;border:1px solid #c7d2fe">
+        <span class="small"><i class="bi ${icones[p.forma]||'bi-cash'} me-1 text-primary"></i>
+          <strong>${nomes[p.forma]||p.forma}</strong>
+          ${p.parcelas > 1 ? `<span class="text-muted ms-1">(${p.parcelas}x)</span>` : ''}
+        </span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="fw-bold text-success">${fmtMoeda(p.valor)}</span>
+          <button class="btn btn-link text-danger p-0" style="font-size:.85rem;line-height:1"
+                  onclick="_fecharRemoverPgto(${i})"><i class="bi bi-x-circle-fill"></i></button>
+        </div>
+      </div>`).join('');
+  }
+  _fecharAtualizarRestante();
+}
+
+function _fecharRemoverPgto(idx) {
+  _fecharPagamentos.splice(idx, 1);
+  _fecharRenderPagamentos();
+}
+
+function selecionarFecharForma(forma, btn) {
+  _fecharFormaSel = forma;
+  document.querySelectorAll('.fechar-forma-btn').forEach(b => b.classList.remove('active','btn-secondary'));
+  btn.classList.add('active');
+  document.getElementById('fechar-nova-campos').style.display = '';
+  ['dinheiro','credito'].forEach(f => {
+    const el = document.getElementById(`fechar-campo-${f}`);
+    if (el) el.style.display = 'none';
+  });
+  const campoEl = document.getElementById(`fechar-campo-${forma}`);
+  if (campoEl) campoEl.style.display = '';
+  const restante = _fecharCalcRestante();
+  _fecharNovaValDigits = Math.round(restante * 100);
+  _displayFecharNovaVal();
+  setCalcTargetFechar();
+  if (forma === 'dinheiro') _calcFecharTroco();
+}
+
+function _displayFecharNovaVal() {
+  const el = document.getElementById('fechar-nova-valor');
+  if (el) el.value = fmtMoeda(_fecharNovaValDigits / 100);
+  if (_fecharFormaSel === 'dinheiro') _calcFecharTroco();
+}
+
+function _calcFecharTroco() {
+  const restante = _fecharCalcRestante();
+  const val = _fecharNovaValDigits / 100;
+  const troco = Math.max(0, val - restante);
+  const el = document.getElementById('fechar-troco');
+  if (el) el.textContent = fmtMoeda(troco);
+}
+
+function setCalcTargetFechar() {
+  _calcTarget = 'fechar-nova';
+  document.querySelectorAll('.calc-input').forEach(el => el.classList.remove('calc-active'));
+  const el = document.getElementById('fechar-nova-valor');
+  if (el) el.classList.add('calc-active');
+}
+
+function adicionarFecharPgto() {
+  if (!_fecharFormaSel) { showToast('Selecione a forma de pagamento', 'warning'); return; }
+  const valor = _fecharNovaValDigits / 100;
+  if (valor <= 0) { showToast('Informe um valor', 'warning'); return; }
+  const restante = _fecharCalcRestante();
+  if (_fecharFormaSel !== 'dinheiro' && valor > restante + 0.01) {
+    showToast('Valor maior que o restante', 'warning'); return;
+  }
+  const parcelas = _fecharFormaSel === 'credito'
+    ? parseInt(document.getElementById('fechar-parcelas').value) || 1 : 1;
+  _fecharPagamentos.push({ forma: _fecharFormaSel, valor, parcelas });
+  _fecharFormaSel = null;
+  _fecharNovaValDigits = 0;
+  document.querySelectorAll('.fechar-forma-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('fechar-nova-campos').style.display = 'none';
+  _calcTarget = null;
+  document.querySelectorAll('.calc-input').forEach(el => el.classList.remove('calc-active'));
+  _fecharRenderPagamentos();
+}
+
+async function confirmarFecharConta() {
+  if (_bloqueadoOffline()) return;
+  const subtotal = _comandaAtual.itens.reduce((s, i) => s + i.subtotal, 0);
+  const desconto = _descontoModo === 'R$'
+    ? _descontoDigits / 100
+    : subtotal * (_descontoDigits / 100) / 100;
+  const taxa_servico_pct = _taxaDigits / 100;
+
+  if (!_fecharPagamentos.length) { showToast('Adicione pelo menos uma forma de pagamento', 'warning'); return; }
+  if (_fecharCalcRestante() > 0.01) { showToast('Valor dos pagamentos não cobre o total', 'warning'); return; }
+
+  const forma_pagamento = _fecharPagamentos.length === 1 ? _fecharPagamentos[0].forma : 'misto';
+  const pagamentos = _fecharPagamentos.length > 1 ? _fecharPagamentos : null;
+
+  try {
+    const res = await api.mesas.fechar(_mesaAtual.id, {
+      forma_pagamento,
+      pagamentos,
+      desconto,
+      taxa_servico_pct,
+    });
+    modalFecharConta.hide();
+    modalComanda.hide();
+    showToast(`Conta fechada! Venda ${res.numero_venda} — ${fmtMoeda(res.total)}`, 'success');
+    await carregarMesas();
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+// ── Modal: Transferir ─────────────────────────────────────────────────────────
+function abrirTransferir() {
+  const livres = _mesas.filter(m => m.status === 'livre' && m.id !== _mesaAtual.id);
+  const sel = document.getElementById('sel-mesa-destino');
+  sel.innerHTML = livres.map(m => `<option value="${m.id}">Mesa ${m.numero_mesa}${m.nome_mesa ? ' — ' + m.nome_mesa : ''}</option>`).join('');
+  if (!livres.length) { showToast('Nenhuma mesa livre disponível', 'warning'); return; }
+  modalTransferir.show();
+}
+
+async function confirmarTransferir() {
+  if (_bloqueadoOffline()) return;
+  const destId = parseInt(document.getElementById('sel-mesa-destino').value);
+  try {
+    await api.mesas.transferir(_mesaAtual.id, { mesa_destino_id: destId });
+    modalTransferir.hide();
+    modalComanda.hide();
+    showToast('Mesa transferida!', 'success');
+    await carregarMesas();
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+// ── Modal: Juntar ─────────────────────────────────────────────────────────────
+function abrirJuntar() {
+  const ocupadas = _mesas.filter(m => m.status === 'ocupada' && m.id !== _mesaAtual.id);
+  const sel = document.getElementById('sel-mesa-origem');
+  sel.innerHTML = ocupadas.map(m => `<option value="${m.id}">Mesa ${m.numero_mesa}${m.nome_mesa ? ' — ' + m.nome_mesa : ''}</option>`).join('');
+  if (!ocupadas.length) { showToast('Nenhuma outra mesa ocupada', 'warning'); return; }
+  modalJuntar.show();
+}
+
+async function confirmarJuntar() {
+  if (_bloqueadoOffline()) return;
+  const origId = parseInt(document.getElementById('sel-mesa-origem').value);
+  try {
+    await api.mesas.juntar(_mesaAtual.id, { mesa_origem_id: origId });
+    modalJuntar.hide();
+    _comandaAtual = await api.mesas.comanda(_mesaAtual.id);
+    renderComanda();
+    await carregarMesas();
+    showToast('Mesas juntadas!', 'success');
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+// ── Gerenciar Mesa (criar/editar) ─────────────────────────────────────────────
+function abrirGerenciar(id) {
+  const mesa = id ? _mesas.find(m => m.id === id) : null;
+  document.getElementById('ger-id').value = id || '';
+  document.getElementById('ger-modal-titulo').textContent = id ? 'Editar Mesa' : 'Nova Mesa';
+  document.getElementById('ger-numero').value = mesa?.numero_mesa || '';
+  document.getElementById('ger-nome').value = mesa?.nome_mesa || '';
+  document.getElementById('ger-capacidade').value = mesa?.capacidade || 4;
+  document.getElementById('ger-setor').value = mesa?.setor || '';
+
+  const btnExcluir = document.getElementById('btn-excluir-mesa');
+  btnExcluir.classList.toggle('d-none', !id || (mesa?.status !== 'livre'));
+
+  // Botão bloquear: apenas para mesas existentes, admin, e não ocupadas
+  const v = getVendedor();
+  const admin = v && v.is_admin === true;
+  const btnBloquear = document.getElementById('btn-bloquear-mesa');
+  const podeMostrarBloquear = id && admin && mesa?.status !== 'ocupada';
+  btnBloquear.classList.toggle('d-none', !podeMostrarBloquear);
+  if (podeMostrarBloquear) {
+    const isBloqueada = mesa?.status === 'bloqueada';
+    document.getElementById('bloquear-label').textContent = isBloqueada ? 'Desbloquear' : 'Bloquear';
+    btnBloquear.querySelector('i').className = isBloqueada ? 'bi bi-unlock me-1' : 'bi bi-lock me-1';
+  }
+
+  modalGerenciar.show();
+}
+
+async function salvarMesa() {
+  if (_bloqueadoOffline()) return;
+  const id = document.getElementById('ger-id').value;
+  const numero_mesa = parseInt(document.getElementById('ger-numero').value);
+  if (!numero_mesa) { showToast('Informe o número da mesa', 'warning'); return; }
+  const data = {
+    numero_mesa,
+    nome_mesa: document.getElementById('ger-nome').value.trim() || null,
+    capacidade: parseInt(document.getElementById('ger-capacidade').value) || 4,
+    setor: document.getElementById('ger-setor').value.trim() || null,
+  };
+  try {
+    if (id) {
+      await api.mesas.atualizar(parseInt(id), data);
+      showToast('Mesa atualizada!', 'success');
+    } else {
+      await api.mesas.criar(data);
+      showToast('Mesa criada!', 'success');
+    }
+    modalGerenciar.hide();
+    await carregarMesas();
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+async function excluirMesa() {
+  if (_bloqueadoOffline()) return;
+  const id = parseInt(document.getElementById('ger-id').value);
+  if (!confirm('Excluir esta mesa?')) return;
+  try {
+    await api.mesas.deletar(id);
+    modalGerenciar.hide();
+    showToast('Mesa excluída', 'warning');
+    await carregarMesas();
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+// ── Status: Aguardar Pagamento ────────────────────────────────────────────────
+async function aguardarPagamento() {
+  if (_bloqueadoOffline()) return;
+  try {
+    await api.mesas.alterarStatus(_mesaAtual.id, 'aguardando_pagamento');
+    await carregarMesas();
+    _mesaAtual = _mesas.find(m => m.id === _mesaAtual.id);
+    showToast('Mesa marcada como aguardando pagamento', 'warning');
+  } catch(e) { showToast(e.message, 'danger'); }
+}
+
+// ── Status: Reservar / Cancelar Reserva ──────────────────────────────────────
+function abrirReservarMesa() {
+  document.getElementById('reservar-mesa-label').textContent = _mesaAtual.numero_mesa;
+  document.getElementById('reservar-nome').value = '';
+  document.getElementById('reservar-horario').value = '';
+  document.getElementById('reservar-pessoas').value = 2;
+  modalReservar.show();
+}
+
+async function confirmarReserva() {
+  if (_bloqueadoOffline()) return;
+  const nome = document.getElementById('reservar-nome').value.trim();
+  if (!nome) { showToast('Informe o nome do cliente', 'warning'); return; }
+  const horario = document.getElementById('reservar-horario').value || null;
+  const pessoas = parseInt(document.getElementById('reservar-pessoas').value) || 2;
+  try {
+    await api.mesas.alterarStatus(_mesaAtual.id, 'reservada', { reserva_nome: nome, reserva_horario: horario, reserva_pessoas: pessoas });
+    modalReservar.hide();
+    modalAbrirComanda.hide();
+    await carregarMesas();
+    showToast(`Mesa ${_mesaAtual.numero_mesa} reservada para ${nome}!`, 'success');
+  } catch(e) { showToast(e.message, 'danger'); }
+}
+
+async function cancelarReserva() {
+  if (_bloqueadoOffline()) return;
+  try {
+    await api.mesas.alterarStatus(_mesaAtual.id, 'livre');
+    modalAbrirComanda.hide();
+    await carregarMesas();
+    showToast('Reserva cancelada', 'warning');
+  } catch(e) { showToast(e.message, 'danger'); }
+}
+
+// ── Status: Bloquear / Desbloquear ───────────────────────────────────────────
+async function toggleBloquearMesa() {
+  if (_bloqueadoOffline()) return;
+  const id = parseInt(document.getElementById('ger-id').value);
+  const mesa = _mesas.find(m => m.id === id);
+  const novoStatus = mesa?.status === 'bloqueada' ? 'livre' : 'bloqueada';
+  try {
+    await api.mesas.alterarStatus(id, novoStatus);
+    modalGerenciar.hide();
+    await carregarMesas();
+    showToast(novoStatus === 'bloqueada' ? 'Mesa bloqueada' : 'Mesa desbloqueada', 'warning');
+  } catch(e) { showToast(e.message, 'danger'); }
+}
+
+// ── Imprimir Pré-conta ────────────────────────────────────────────────────────
+function imprimirPreConta() {
+  const m = _mesaAtual;
+  const c = _comandaAtual;
+  const subtotal = c.itens.reduce((s, i) => s + i.subtotal, 0);
+  const html = `
+    <style>
+      body { font-family: monospace; font-size: 13px; max-width: 300px; margin: 0 auto; }
+      h3 { text-align:center; margin:4px 0; }
+      p { margin:2px 0; }
+      hr { border-top: 1px dashed #000; }
+      .row { display:flex; justify-content:space-between; }
+      .total { font-weight:bold; font-size:15px; }
+    </style>
+    <h3>PRÉ-CONTA</h3>
+    <p style="text-align:center">Mesa ${m.numero_mesa}${m.nome_mesa ? ' — ' + m.nome_mesa : ''}</p>
+    <p style="text-align:center">${new Date().toLocaleString('pt-BR')}</p>
+    <hr>
+    ${c.itens.map(it => `
+      <div class="row"><span>${it.quantidade}x ${it.nome}</span><span>${fmtMoeda(it.subtotal)}</span></div>
+      ${it.observacao_item ? `<p style="font-size:11px;color:#555">  obs: ${it.observacao_item}</p>` : ''}
+    `).join('')}
+    <hr>
+    <div class="row"><span>Subtotal</span><span>${fmtMoeda(subtotal)}</span></div>
+    ${c.desconto > 0 ? `<div class="row"><span>Desconto</span><span>-${fmtMoeda(c.desconto)}</span></div>` : ''}
+    ${c.taxa_servico > 0 ? `<div class="row"><span>Taxa serviço (${c.taxa_servico_pct}%)</span><span>${fmtMoeda(c.taxa_servico)}</span></div>` : ''}
+    <hr>
+    <div class="row total"><span>TOTAL</span><span>${fmtMoeda(c.valor_total)}</span></div>
+    <p style="text-align:center;margin-top:8px">*** DOCUMENTO NÃO FISCAL ***</p>
+  `;
+  const win = window.open('', '_blank', 'width=350,height=600');
+  win.document.write('<html><body>' + html + '</body></html>');
+  win.document.close();
+  win.print();
+}
+
+// ── Dividir Conta por Item ────────────────────────────────────────────────────
+function ajustarNPessoas(delta) {
+  _dividirN = Math.max(2, _dividirN + delta);
+  document.getElementById('dividir-n-pessoas').textContent = _dividirN;
+  _renderDividirItens();
+}
+
+function abrirDividirConta() {
+  _dividirN = Math.max(2, _comandaAtual.quantidade_pessoas || 2);
+  document.getElementById('dividir-n-pessoas').textContent = _dividirN;
+  _comandaAtual.itens.forEach(it => { _dividirAtribuicoes[it.id] = 'todos'; });
+  _renderDividirItens();
+  modalDividirConta.show();
+}
+
+function _renderDividirItens() {
+  const tbody = document.getElementById('dividir-itens-tbody');
+  if (!tbody) return;
+  const opcoesHtml = `<option value="todos">Todos (÷${_dividirN})</option>` +
+    Array.from({length: _dividirN}, (_, i) => `<option value="${i+1}">Pessoa ${i+1}</option>`).join('');
+  tbody.innerHTML = _comandaAtual.itens.map(it => `
+    <tr>
+      <td class="small">${it.quantidade > 1 ? `${it.quantidade}x ` : ''}${it.nome}
+        ${it.observacao_item ? `<div class="text-muted" style="font-size:.72rem">${it.observacao_item}</div>` : ''}
+      </td>
+      <td class="text-end small fw-semibold">${fmtMoeda(it.subtotal)}</td>
+      <td class="text-center">
+        <select class="form-select form-select-sm" style="min-width:100px"
+                onchange="_setAtribuicao(${it.id}, this.value)">
+          ${opcoesHtml}
+        </select>
+      </td>
+    </tr>`).join('');
+  _comandaAtual.itens.forEach(it => {
+    const sel = tbody.querySelector(`select[onchange="_setAtribuicao(${it.id}, this.value)"]`);
+    if (sel) sel.value = _dividirAtribuicoes[it.id] || 'todos';
+  });
+  _renderDividirResumo();
+}
+
+function _setAtribuicao(itemId, valor) {
+  _dividirAtribuicoes[itemId] = valor;
+  _renderDividirResumo();
+}
+
+function _renderDividirResumo() {
+  const totais = {};
+  for (let i = 1; i <= _dividirN; i++) totais[i] = 0;
+  _comandaAtual.itens.forEach(it => {
+    const attr = _dividirAtribuicoes[it.id] || 'todos';
+    if (attr === 'todos') {
+      for (let i = 1; i <= _dividirN; i++) totais[i] += it.subtotal / _dividirN;
+    } else {
+      totais[parseInt(attr)] = (totais[parseInt(attr)] || 0) + it.subtotal;
+    }
+  });
+  const resumo = document.getElementById('dividir-resumo');
+  if (!resumo) return;
+  resumo.innerHTML = Array.from({length: _dividirN}, (_, i) => `
+    <div class="col-6 col-md-4">
+      <div class="card border-0 bg-light p-2 text-center">
+        <div class="small text-muted fw-semibold">Pessoa ${i+1}</div>
+        <div class="fw-bold text-success">${fmtMoeda(totais[i+1])}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Guard offline para operações de escrita ───────────────────────────────────
+function _bloqueadoOffline() {
+  if (window.OfflinePDV && OfflinePDV.isOffline()) {
+    showToast('Sem conexão. Reconecte para realizar esta ação.', 'warning');
+    return true;
+  }
+  return false;
+}
+
+// ── Service Worker ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// ── Iniciar ───────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

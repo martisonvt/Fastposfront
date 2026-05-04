@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Configurar Servidor - FastPOS</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#2d8a4e">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background:#f0f4f0; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    .step { display:none; }
+    .step.active { display:block; }
+  </style>
+</head>
+<body>
+
+<div style="width:100%;max-width:400px;padding:1rem">
+
+  <!-- Passo 1: Boas-vindas -->
+  <div class="step active" id="step-1">
+    <div class="card shadow-sm text-center">
+      <div class="card-body p-4">
+        <i class="bi bi-shop fs-1 text-success mb-3 d-block"></i>
+        <h4 class="fw-bold mb-1">Bem-vindo ao FastPOS</h4>
+        <p class="text-muted mb-4">Configure o endereço do servidor para conectar este dispositivo ao sistema.</p>
+        <button class="btn btn-success btn-lg w-100" onclick="irPasso(2)">
+          <i class="bi bi-arrow-right me-2"></i>Começar configuração
+        </button>
+        <hr class="my-3">
+        <p class="text-muted small mb-1">Já tem o servidor rodando na mesma rede?</p>
+        <button class="btn btn-outline-secondary btn-sm" onclick="usarLocalhost()">
+          <i class="bi bi-pc-display me-1"></i>Usar este dispositivo (localhost)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Passo 2: Informações do servidor -->
+  <div class="step" id="step-2">
+    <div class="card shadow-sm">
+      <div class="card-header bg-success text-white py-2">
+        <i class="bi bi-hdd-network me-2"></i><strong>Endereço do Servidor</strong>
+      </div>
+      <div class="card-body p-4">
+
+        <div class="alert alert-info py-2 small mb-3">
+          <i class="bi bi-info-circle me-1"></i>
+          O servidor é o PC onde o PDV está instalado e rodando.
+          Abra o <strong>start.bat</strong> nesse PC antes de continuar.
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">URL do Servidor</label>
+          <input type="url" id="setup-url" class="form-control form-control-lg"
+            placeholder="http://192.168.1.100:8000"
+            value="">
+          <div class="form-text">
+            No PC do servidor, veja o IP local em: <strong>Configurações → Wi-Fi → Propriedades</strong>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-muted">Exemplos comuns:</label>
+          <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="preencherUrl('http://192.168.1.100:8000')">192.168.1.100</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="preencherUrl('http://192.168.0.100:8000')">192.168.0.100</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="preencherUrl('http://10.0.0.2:8000')">10.0.0.2</button>
+          </div>
+        </div>
+
+        <div id="setup-erro" class="alert alert-danger py-2 small" style="display:none"></div>
+
+        <button class="btn btn-success w-100 btn-lg mt-2" id="btn-testar" onclick="testarConexao()">
+          <i class="bi bi-plug me-2"></i>Testar e Conectar
+        </button>
+        <button class="btn btn-link w-100 mt-1 text-muted small" onclick="irPasso(1)">← Voltar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Passo 3: Sucesso -->
+  <div class="step" id="step-3">
+    <div class="card shadow-sm text-center">
+      <div class="card-body p-4">
+        <i class="bi bi-check-circle-fill fs-1 text-success mb-3 d-block"></i>
+        <h4 class="fw-bold mb-1 text-success">Conectado!</h4>
+        <p class="text-muted mb-1">Servidor encontrado com sucesso.</p>
+        <p id="sucesso-url" class="fw-semibold text-success mb-4"></p>
+        <button class="btn btn-success btn-lg w-100" onclick="concluir()">
+          <i class="bi bi-box-arrow-in-right me-2"></i>Ir para o Login
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=3"></script>
+<script>
+  // Se já configurado E não veio pelo botão "trocar servidor", vai direto pro login
+  const _reset = new URLSearchParams(location.search).get('reset');
+  if (!_reset && localStorage.getItem('pdv_server_url')) {
+    window.location.href = '/';
+  }
+  // Pré-preenche o campo com a URL atual (se existir)
+  window.addEventListener('DOMContentLoaded', function() {
+    var urlAtual = localStorage.getItem('pdv_server_url');
+    if (urlAtual) {
+      document.getElementById('setup-url').value = urlAtual;
+    }
+  });
+
+  function irPasso(n) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step-' + n).classList.add('active');
+  }
+
+  function preencherUrl(url) {
+    document.getElementById('setup-url').value = url;
+  }
+
+  function usarLocalhost() {
+    setApiUrl('http://127.0.0.1:8000');
+    window.location.href = '/';
+  }
+
+  async function testarConexao() {
+    const url = document.getElementById('setup-url').value.trim();
+    const erroEl = document.getElementById('setup-erro');
+    const btn = document.getElementById('btn-testar');
+    erroEl.style.display = 'none';
+
+    if (!url) {
+      erroEl.textContent = 'Digite o endereço do servidor.';
+      erroEl.style.display = '';
+      return;
+    }
+    if (!url.startsWith('http')) {
+      erroEl.textContent = 'O endereço deve começar com http:// ou https://';
+      erroEl.style.display = '';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Testando conexão...';
+
+    try {
+      // Testa a conexão tentando acessar /api/configuracoes/
+      const testUrl = url.replace(/\/+$/, '') + '/api/configuracoes/';
+      const res = await fetch(testUrl, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error('Servidor respondeu com erro ' + res.status);
+
+      // Salva URL e mostra sucesso
+      setApiUrl(url);
+      document.getElementById('sucesso-url').textContent = url;
+      irPasso(3);
+    } catch(e) {
+      erroEl.textContent = 'Não foi possível conectar. Verifique se: o servidor está ligado, o start.bat está rodando, e o endereço IP está correto.';
+      erroEl.style.display = '';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-plug me-2"></i>Testar e Conectar';
+    }
+  }
+
+  function concluir() {
+    window.location.href = '/';
+  }
+</script>
+</body>
+</html>

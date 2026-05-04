@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assinatura - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    .plano-card {
+      border: 2px solid #e9ecef;
+      border-radius: 16px;
+      transition: all .25s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+    .plano-card:hover {
+      border-color: var(--pdv-primary, #2563eb);
+      box-shadow: 0 8px 24px rgba(37,99,235,.15);
+      transform: translateY(-3px);
+    }
+    .plano-card.selecionado {
+      border-color: var(--pdv-primary, #2563eb) !important;
+      background: #eff6ff !important;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.18);
+    }
+    .plano-card.selecionado::after {
+      content: '\F26E';
+      font-family: 'bootstrap-icons';
+      position: absolute;
+      top: 10px; left: 12px;
+      font-size: 1.1rem;
+      color: var(--pdv-primary, #2563eb);
+    }
+    .plano-card.plano-atual {
+      border-color: #10b981 !important;
+      background: #f0fdf4 !important;
+    }
+    .plano-card.plano-atual::before {
+      content: 'SEU PLANO';
+      position: absolute;
+      top: 0; right: 0;
+      background: #10b981;
+      color: #fff;
+      font-size: .65rem;
+      padding: 4px 12px;
+      border-bottom-left-radius: 10px;
+      font-weight: 700;
+      letter-spacing: .5px;
+    }
+    .badge-destaque {
+      position: absolute;
+      top: 0; right: 0;
+      background: var(--pdv-primary, #2563eb);
+      color: #fff;
+      font-size: .7rem;
+      padding: 4px 14px;
+      border-bottom-left-radius: 10px;
+      font-weight: 600;
+      letter-spacing: .5px;
+    }
+    .preco-valor {
+      font-size: 2.4rem;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--pdv-primary, #2563eb);
+    }
+    .preco-mes {
+      font-size: .85rem;
+      color: #6c757d;
+    }
+    .status-banner {
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+    .status-trial    { background: #fff8e1; border: 1px solid #ffe082; }
+    .status-ativo    { background: #e8f5e9; border: 1px solid #a5d6a7; }
+    .status-bloqueado{ background: #fce4ec; border: 1px solid #f48fb1; }
+    .alerta-downgrade {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 10px;
+      padding: 14px 18px;
+    }
+  </style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+
+  <!-- Cabeçalho -->
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-credit-card me-2"></i>Assinatura</h2>
+      <p class="text-muted">Gerencie seu plano FastPOS</p>
+    </div>
+  </div>
+
+  <!-- Banner de status -->
+  <div id="status-banner" class="status-banner mb-4 d-none">
+    <div class="d-flex align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <i id="status-icon" class="bi fs-3"></i>
+        <div>
+          <div id="status-titulo" class="fw-bold fs-6"></div>
+          <div id="status-desc" class="small text-muted"></div>
+        </div>
+      </div>
+      <button id="botao-cancelar" class="btn btn-outline-danger btn-sm d-none" onclick="cancelarAssinatura()">
+        <i class="bi bi-x-circle me-1"></i> Cancelar Assinatura
+      </button>
+    </div>
+  </div>
+
+  <!-- Alerta de downgrade (usuários excedentes) -->
+  <div id="alerta-downgrade" class="alerta-downgrade mb-4 d-none">
+    <div class="d-flex align-items-start gap-2">
+      <i class="bi bi-exclamation-triangle-fill text-warning mt-1"></i>
+      <div>
+        <div class="fw-semibold" id="downgrade-titulo"></div>
+        <div class="small mt-1" id="downgrade-desc"></div>
+        <a href="/pages/vendedores.html" class="btn btn-sm btn-outline-warning mt-2">
+          <i class="bi bi-people me-1"></i> Gerenciar Usuários
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Planos -->
+  <div class="card">
+    <div class="card-body">
+      <h5 class="fw-bold mb-1" id="titulo-secao">Escolha seu plano</h5>
+      <p class="text-muted small mb-4" id="desc-secao">Pagamento recorrente via cartão de crédito. Cancele quando quiser.</p>
+
+      <div id="planos-grid" class="row g-3">
+        <div class="col-12 text-center py-5 text-muted">
+          <div class="spinner-border spinner-border-sm me-2"></div> Carregando planos...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add-ons Premium -->
+  <div class="card mt-3" id="card-addons">
+    <div class="card-body">
+      <h5 class="fw-bold mb-1"><i class="bi bi-puzzle-fill me-2 text-primary"></i>Add-ons Premium</h5>
+      <p class="text-muted small mb-4">Módulos extras pagos separadamente. Cancele quando quiser.</p>
+
+      <div class="row g-3" id="addons-grid">
+        <div class="col-12 text-center py-3 text-muted">
+          <div class="spinner-border spinner-border-sm me-2"></div> Carregando...
+        </div>
+      </div>
+
+      <!-- E-mail + botão contratação addon -->
+      <div id="addon-contratar-form" class="mt-4 d-none">
+        <hr>
+        <h6 class="fw-semibold mb-3" id="addon-form-titulo">Contratar Add-on</h6>
+        <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-start gap-2" style="font-size:.85rem">
+          <i class="bi bi-info-circle-fill text-primary mt-1"></i>
+          <div>Use o <strong>mesmo e-mail</strong> no checkout do Mercado Pago.</div>
+        </div>
+        <div class="row g-2 align-items-end">
+          <div class="col-md-6">
+            <input type="email" id="addon-email" class="form-control" placeholder="seu@email.com">
+          </div>
+          <div class="col-md-auto">
+            <button id="btn-addon-assinar" class="btn btn-pdv px-4" disabled onclick="contratarAddon()">
+              <i class="bi bi-lock-fill me-1"></i> Informe o e-mail
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email para cobrança -->
+  <div class="card mt-3">
+    <div class="card-body">
+      <h6 class="fw-semibold mb-3"><i class="bi bi-envelope me-2"></i>E-mail para cobrança</h6>
+
+      <!-- Aviso importante sobre o e-mail -->
+      <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-start gap-2" style="font-size:.85rem">
+        <i class="bi bi-info-circle-fill text-primary mt-1"></i>
+        <div>
+          <strong>Atenção:</strong> Use exatamente este mesmo e-mail no checkout do Mercado Pago.
+          Se digitar um e-mail diferente lá, o pagamento será recusado.
+        </div>
+      </div>
+
+      <div class="row g-2 align-items-end">
+        <div class="col-md-6">
+          <input type="email" id="email-cobranca" class="form-control"
+                 placeholder="seu@email.com">
+          <div class="form-text" id="hint-plano">
+            Selecione um plano acima e informe seu e-mail para prosseguir.
+          </div>
+        </div>
+        <div class="col-md-auto">
+          <button id="btn-assinar" class="btn btn-pdv px-4" disabled>
+            <i class="bi bi-lock-fill me-1"></i> Selecione um plano
+          </button>
+        </div>
+      </div>
+
+      <!-- Aviso de troca de plano -->
+      <div id="aviso-troca" class="alert alert-warning mt-3 d-none" role="alert">
+        <i class="bi bi-arrow-left-right me-2"></i>
+        <strong>Atenção:</strong> Sua assinatura atual será <strong>cancelada</strong> e uma nova cobrança será gerada para o plano selecionado.
+      </div>
+
+      <!-- Aviso de carência (cancelado mas ainda com acesso) -->
+      <div id="aviso-carencia" class="alert alert-warning mt-3 d-none" role="alert">
+        <i class="bi bi-clock-history me-2"></i>
+        <strong>Atenção:</strong> Você ainda tem acesso ao Plano <strong id="carencia-plano"></strong> até <strong id="carencia-data"></strong>.
+        Ao assinar um novo plano agora, esse período restante <strong>não será reembolsado</strong>.
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-content -->
+
+<script src="/js/api.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script src="/js/components.js?v=2"></script>
+<script>
+function voltarPagina() {
+  if (window.history.length > 1) { window.history.back(); }
+  else { window.location.href = '/pages/caixa.html'; }
+}
+if (window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.App) {
+  Capacitor.Plugins.App.addListener('backButton', () => voltarPagina());
+} else {
+  document.addEventListener('backbutton', voltarPagina);
+}
+document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/assinatura.html');
+setActiveNav('/pages/assinatura.html');
+
+(async () => {
+  // Tenta pegar subdomínio do localStorage (gravado no login do app/tenant)
+  // Fallback: extrai do hostname (funciona quando acessado via subdomínio direto)
+  const _hostParts = location.hostname.split('.');
+  const sub = localStorage.getItem('pdv_subdominio') ||
+              (_hostParts.length >= 4 ? _hostParts[0] : null);
+  const API  = '';
+
+  let planoSelecionado = null;
+  let statusAtual      = null;   // dados do /status
+  let modoTroca        = false;  // true se já tem plano ativo
+
+  // ── Status atual ────────────────────────────────────────────────────────────
+  async function carregarStatus() {
+    try {
+      const r = await fetch(`${API}/api/pagamentos/status/${sub}`);
+      if (!r.ok) return;
+      const d = await r.json();
+      statusAtual = d;
+
+      const banner = document.getElementById('status-banner');
+      const icon   = document.getElementById('status-icon');
+      const titulo = document.getElementById('status-titulo');
+      const desc   = document.getElementById('status-desc');
+      banner.classList.remove('d-none');
+
+      if (d.em_trial && d.trial_ativo) {
+        banner.className     = 'status-banner mb-4 status-trial';
+        icon.className       = 'bi bi-hourglass-split fs-3 text-warning';
+        titulo.textContent   = `Período Trial — expira em ${d.trial_fim}`;
+        desc.textContent     = 'Assine um plano para continuar usando após o trial.';
+      } else if (d.status === 'ativo') {
+        banner.className     = 'status-banner mb-4 status-ativo';
+        icon.className       = 'bi bi-check-circle-fill fs-3 text-success';
+
+        if (d.assinatura_cancelada) {
+          // Assinatura cancelada mas ainda em período de carência
+          titulo.textContent   = `Plano ${d.plano} — Cancelado`;
+          desc.textContent     = `Sua assinatura foi cancelada. Acesso garantido até ${d.vencimento || 'o fim do período pago'}.`;
+          banner.className     = 'status-banner mb-4 status-trial';
+          icon.className       = 'bi bi-clock-history fs-3 text-warning';
+        } else {
+          titulo.textContent   = `Plano ${d.plano} — Ativo`;
+          desc.textContent     = 'Sua assinatura está ativa. Você pode trocar de plano abaixo.';
+          // Ativa modo troca
+          modoTroca = true;
+          document.getElementById('titulo-secao').textContent = 'Trocar de plano';
+          document.getElementById('desc-secao').textContent   = 'Sua assinatura atual será cancelada e uma nova cobrança será gerada.';
+          // Mostra botão de cancelar assinatura
+          document.getElementById('botao-cancelar').classList.remove('d-none');
+        }
+      } else if (d.status === 'bloqueado') {
+        banner.className     = 'status-banner mb-4 status-bloqueado';
+        icon.className       = 'bi bi-exclamation-triangle-fill fs-3 text-danger';
+        titulo.textContent   = 'Acesso bloqueado — pagamento pendente';
+        desc.textContent     = 'Assine ou renove seu plano para reativar o acesso.';
+      }
+    } catch(e) { /* silencia */ }
+  }
+
+  // ── Planos ──────────────────────────────────────────────────────────────────
+  async function carregarPlanos() {
+    const grid = document.getElementById('planos-grid');
+    try {
+      const r = await fetch(`${API}/api/pagamentos/planos`);
+      const planos = await r.json();
+
+      const icons = {
+        'Básico':       'bi-person',
+        'Padrão':       'bi-people',
+        'Pro':          'bi-people-fill',
+        'Empresarial':  'bi-building',
+      };
+      const cores = {
+        'Básico':       '#6c757d',
+        'Padrão':       '#2563eb',
+        'Pro':          '#7c3aed',
+        'Empresarial':  '#059669',
+      };
+
+      grid.innerHTML = planos.map((p) => {
+        const isAtual   = statusAtual && statusAtual.plano_id === p.id;
+        const destaque  = p.nome === 'Padrão' && !isAtual;
+        const maxU      = p.max_usuarios === -1 ? 'Ilimitado' : `${p.max_usuarios} usuários`;
+        return `
+        <div class="col-sm-6 col-lg-3">
+          <div class="plano-card p-4 h-100 ${isAtual ? 'plano-atual' : ''}"
+               data-id="${p.id}" data-nome="${p.nome}" data-max="${p.max_usuarios}"
+               onclick="selecionarPlano(this)">
+            ${destaque ? '<span class="badge-destaque">POPULAR</span>' : ''}
+            <div class="mb-3 mt-1">
+              <i class="bi ${icons[p.nome] || 'bi-box'} fs-2" style="color:${cores[p.nome] || '#2563eb'}"></i>
+            </div>
+            <div class="fw-bold fs-5 mb-1">${p.nome}</div>
+            <div class="d-flex align-items-end gap-1 mb-3">
+              <span class="preco-valor">R$${p.preco_mensal.toFixed(0)}</span>
+              <span class="preco-mes mb-1">/mês</span>
+            </div>
+            <ul class="list-unstyled small text-muted mb-0">
+              <li class="mb-1"><i class="bi bi-check2 text-success me-1"></i>${maxU}</li>
+              <li class="mb-1"><i class="bi bi-check2 text-success me-1"></i>Todos os módulos</li>
+              <li class="mb-1"><i class="bi bi-check2 text-success me-1"></i>Suporte via WhatsApp</li>
+              <li><i class="bi bi-check2 text-success me-1"></i>Cancele quando quiser</li>
+            </ul>
+          </div>
+        </div>`;
+      }).join('');
+
+      // Pré-seleciona o plano "Padrão" se não tem plano ativo
+      if (!modoTroca) {
+        const padrao = grid.querySelector('[data-nome="Padrão"]');
+        if (padrao) selecionarPlano(padrao);
+      }
+
+    } catch(e) {
+      grid.innerHTML = '<div class="col-12 text-danger text-center py-4">Erro ao carregar planos.</div>';
+    }
+  }
+
+  // ── Cancelar assinatura ─────────────────────────────────────────────────────
+  window.cancelarAssinatura = async function() {
+    const ok = confirm(
+      'Tem certeza que deseja cancelar sua assinatura?\n\n' +
+      'Você manterá acesso até o fim do período pago, mas não haverá renovação automática.'
+    );
+    if (!ok) return;
+
+    const btn = document.getElementById('botao-cancelar');
+    const original = btn.innerHTML;
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Cancelando...';
+
+    try {
+      const r = await fetch(`${API}/api/pagamentos/cancelar`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ subdominio: sub }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Erro ao cancelar assinatura');
+
+      alert(d.mensagem || 'Assinatura cancelada com sucesso.');
+      location.reload();
+    } catch(e) {
+      alert('Erro: ' + e.message);
+      btn.disabled  = false;
+      btn.innerHTML = original;
+    }
+  };
+
+  window.selecionarPlano = function(el) {
+    // Não permite selecionar o plano atual (modo troca)
+    const isAtual = modoTroca && statusAtual && statusAtual.plano_id === +el.dataset.id;
+    if (isAtual) return;
+
+    document.querySelectorAll('.plano-card').forEach(c => c.classList.remove('selecionado'));
+    el.classList.add('selecionado');
+    planoSelecionado = { id: +el.dataset.id, nome: el.dataset.nome, max: +el.dataset.max };
+
+    // Esconde alerta de downgrade ao selecionar novo plano
+    document.getElementById('alerta-downgrade').classList.add('d-none');
+
+    atualizarBotao();
+  };
+
+  function atualizarBotao() {
+    const btn   = document.getElementById('btn-assinar');
+    const email = document.getElementById('email-cobranca').value.trim();
+    const hint  = document.getElementById('hint-plano');
+    const aviso = document.getElementById('aviso-troca');
+
+    // Mostra aviso de troca se está em modo troca e selecionou plano diferente
+    if (modoTroca && planoSelecionado) {
+      aviso.classList.remove('d-none');
+    } else {
+      aviso.classList.add('d-none');
+    }
+
+    // Mostra aviso de carência se cancelado mas ainda com acesso
+    const avisoCarencia = document.getElementById('aviso-carencia');
+    if (statusAtual && statusAtual.assinatura_cancelada && planoSelecionado) {
+      document.getElementById('carencia-plano').textContent = statusAtual.plano || 'atual';
+      document.getElementById('carencia-data').textContent  = statusAtual.vencimento || 'o fim do período pago';
+      avisoCarencia.classList.remove('d-none');
+    } else {
+      avisoCarencia.classList.add('d-none');
+    }
+
+    if (planoSelecionado && email.includes('@')) {
+      btn.disabled   = false;
+      const icone    = modoTroca ? 'bi-arrow-left-right' : 'bi-credit-card';
+      const acao     = modoTroca ? 'Trocar para' : 'Assinar —';
+      btn.innerHTML  = `<i class="bi ${icone} me-1"></i> ${acao} ${planoSelecionado.nome}`;
+      hint.innerHTML = `Você selecionou: <strong>${planoSelecionado.nome}</strong>. Clique no botão para ir ao checkout.`;
+    } else if (planoSelecionado) {
+      btn.disabled   = true;
+      btn.innerHTML  = `<i class="bi bi-lock-fill me-1"></i> Informe seu e-mail`;
+      hint.innerHTML = `Plano <strong>${planoSelecionado.nome}</strong> selecionado. Informe o e-mail para continuar.`;
+    } else {
+      btn.disabled   = true;
+      btn.innerHTML  = `<i class="bi bi-lock-fill me-1"></i> Selecione um plano`;
+      hint.innerHTML = 'Selecione um plano acima e informe seu e-mail para prosseguir.';
+      aviso.classList.add('d-none');
+    }
+  }
+
+  document.getElementById('email-cobranca').addEventListener('input', atualizarBotao);
+
+  // ── Assinar / Trocar ────────────────────────────────────────────────────────
+  document.getElementById('btn-assinar').addEventListener('click', async () => {
+    const email = document.getElementById('email-cobranca').value.trim();
+    if (!planoSelecionado || !email) return;
+
+    // Confirmação extra no modo troca
+    if (modoTroca) {
+      const ok = confirm(
+        `Tem certeza que deseja trocar para o plano ${planoSelecionado.nome}?\n\n` +
+        `Sua assinatura atual será cancelada e você será redirecionado para pagar o novo plano.`
+      );
+      if (!ok) return;
+    }
+
+    // Confirmação extra no período de carência
+    if (statusAtual && statusAtual.assinatura_cancelada) {
+      const venc = statusAtual.vencimento || 'o fim do período pago';
+      const ok = confirm(
+        `Você ainda tem acesso ao Plano ${statusAtual.plano} até ${venc}.\n\n` +
+        `Ao assinar o plano ${planoSelecionado.nome} agora, esse período restante não será reembolsado.\n\n` +
+        `Deseja continuar?`
+      );
+      if (!ok) return;
+    }
+
+    const btn = document.getElementById('btn-assinar');
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Aguarde...';
+
+    // Esconde alertas anteriores
+    document.getElementById('alerta-downgrade').classList.add('d-none');
+
+    try {
+      const endpoint = modoTroca ? '/api/pagamentos/trocar-plano' : '/api/pagamentos/assinar';
+      const r = await fetch(`${API}${endpoint}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, subdominio: sub, plano_id: planoSelecionado.id }),
+      });
+      const d = await r.json();
+
+      if (!r.ok) {
+        // Trata erro de usuários excedentes
+        if (d.detail && d.detail.code === 'usuarios_excedentes') {
+          const info = d.detail;
+          document.getElementById('downgrade-titulo').textContent = info.mensagem;
+          document.getElementById('downgrade-desc').innerHTML =
+            `Remova pelo menos <strong>${info.excedente}</strong> usuário(s) antes de mudar para este plano.`;
+          document.getElementById('alerta-downgrade').classList.remove('d-none');
+          document.getElementById('alerta-downgrade').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          btn.disabled = false;
+          atualizarBotao();
+          return;
+        }
+        throw new Error(d.detail || 'Erro ao processar assinatura');
+      }
+
+      // Redireciona para o checkout do Mercado Pago
+      window.location.href = d.checkout_url;
+    } catch(e) {
+      alert('Erro: ' + e.message);
+      btn.disabled = false;
+      atualizarBotao();
+    }
+  });
+
+  // ── Add-ons ─────────────────────────────────────────────────────────────────
+  let addonSelecionado = null;
+
+  async function carregarAddons() {
+    const grid = document.getElementById('addons-grid');
+    if (!sub) {
+      grid.innerHTML = '<div class="col-12 text-muted small">Subdomínio não identificado.</div>';
+      return;
+    }
+    try {
+      const r = await fetch(`${API}/api/pagamentos/addon/status/${sub}`);
+      if (!r.ok) throw new Error('Erro ao carregar add-ons');
+      const addons = await r.json();
+
+      const icones = { mesas: 'bi-grid-3x3' };
+      const cores  = { mesas: '#10b981' };
+
+      grid.innerHTML = Object.entries(addons).map(([key, a]) => {
+        const statusCls = a.status === 'ativo'              ? 'success' :
+                          a.status === 'cancelado_carencia' ? 'warning' :
+                          a.status === 'trial'              ? 'info'    : 'secondary';
+        const statusTxt = a.status === 'ativo'              ? 'Ativo' :
+                          a.status === 'cancelado_carencia' ? `Ativo até ${a.vencimento}` :
+                          a.status === 'trial'              ? `Liberado no trial — até ${a.trial_fim}` : 'Inativo';
+        const btnLabel  = a.status === 'ativo'              ? 'Cancelar add-on' :
+                          a.status === 'cancelado_carencia' ? 'Renovar add-on'  : 'Contratar';
+        const btnCls    = a.status === 'ativo' ? 'btn-outline-danger' : 'btn-pdv';
+        const btnAction = a.status === 'ativo' ? `cancelarAddon('${key}')` : `selecionarAddon('${key}', this)`;
+        return `
+        <div class="col-md-5">
+          <div class="border rounded p-3 d-flex align-items-center gap-3" id="addon-card-${key}">
+            <i class="bi ${icones[key] || 'bi-puzzle'}" style="font-size:2rem;color:${cores[key]||'#2563eb'}"></i>
+            <div class="flex-grow-1">
+              <div class="fw-semibold">${a.nome}</div>
+              <div class="small text-muted">R$ ${a.preco.toFixed(2).replace('.',',')} / mês</div>
+              <span class="badge bg-${statusCls} mt-1">${statusTxt}</span>
+            </div>
+            <button class="btn btn-sm ${btnCls}" onclick="${btnAction}">${btnLabel}</button>
+          </div>
+        </div>`;
+      }).join('') || '<div class="col-12 text-muted small">Nenhum add-on disponível no momento.</div>';
+
+    } catch(e) {
+      grid.innerHTML = '<div class="col-12 text-danger small">Erro ao carregar add-ons.</div>';
+    }
+  }
+
+  window.selecionarAddon = function(key, btn) {
+    addonSelecionado = key;
+    // Destaca o card selecionado
+    document.querySelectorAll('[id^="addon-card-"]').forEach(c => c.classList.remove('border-primary'));
+    document.getElementById('addon-card-' + key).classList.add('border-primary');
+
+    const nomes = { mesas: 'Módulo de Mesas' };
+    document.getElementById('addon-form-titulo').textContent = `Contratar: ${nomes[key] || key}`;
+    document.getElementById('addon-contratar-form').classList.remove('d-none');
+    document.getElementById('addon-contratar-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => document.getElementById('addon-email').focus(), 400);
+    atualizarBotaoAddon();
+  };
+
+  function atualizarBotaoAddon() {
+    const btn   = document.getElementById('btn-addon-assinar');
+    const email = document.getElementById('addon-email').value.trim();
+    if (addonSelecionado && email.includes('@')) {
+      btn.disabled  = false;
+      btn.innerHTML = '<i class="bi bi-credit-card me-1"></i> Ir para o checkout';
+    } else {
+      btn.disabled  = true;
+      btn.innerHTML = '<i class="bi bi-lock-fill me-1"></i> Informe o e-mail';
+    }
+  }
+
+  document.getElementById('addon-email').addEventListener('input', atualizarBotaoAddon);
+
+  window.contratarAddon = async function() {
+    const email = document.getElementById('addon-email').value.trim();
+    if (!addonSelecionado || !email) return;
+
+    const btn = document.getElementById('btn-addon-assinar');
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Aguarde...';
+
+    try {
+      const r = await fetch(`${API}/api/pagamentos/addon/assinar`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, subdominio: sub, addon: addonSelecionado }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Erro ao criar assinatura');
+      window.location.href = d.checkout_url;
+    } catch(e) {
+      alert('Erro: ' + e.message);
+      btn.disabled  = false;
+      atualizarBotaoAddon();
+    }
+  };
+
+  window.cancelarAddon = async function(key) {
+    const nomes = { mesas: 'Módulo de Mesas' };
+    const ok = confirm(
+      `Tem certeza que deseja cancelar o add-on "${nomes[key] || key}"?\n\n` +
+      `O módulo será desativado imediatamente.`
+    );
+    if (!ok) return;
+
+    try {
+      const r = await fetch(`${API}/api/pagamentos/addon/cancelar`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ subdominio: sub, addon: key }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Erro ao cancelar');
+      alert(d.mensagem || 'Add-on cancelado.');
+      location.reload();
+    } catch(e) {
+      alert('Erro: ' + e.message);
+    }
+  };
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  await carregarStatus();
+  await carregarPlanos();
+  await carregarAddons();
+})();
+</script>
+</body>
+</html>

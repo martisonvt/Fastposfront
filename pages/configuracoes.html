@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dados da Loja - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+</head>
+<body>
+<div id="sidebar-mount"></div>
+
+<div class="main-content">
+  <div class="page-header d-flex align-items-center gap-2 mb-4">
+    <i class="bi bi-gear-fill fs-4" style="color:var(--text-main)"></i>
+    <div>
+      <h4 class="mb-0 fw-bold">Dados da Loja</h4>
+      <small class="text-muted">Informações que aparecem na impressão da notinha e no cabeçalho do sistema</small>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+
+      <!-- Card principal -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-success text-white py-2">
+          <i class="bi bi-shop me-2"></i><strong>Identificação da Empresa</strong>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Nome da Empresa <span class="text-danger">*</span></label>
+              <input type="text" id="cfg-nome" class="form-control"
+                placeholder="Ex: Mercadinho do João">
+              <div class="form-text">Este nome substituirá "PDV" no cabeçalho do sistema e na notinha.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">CNPJ / CPF</label>
+              <input type="text" id="cfg-cnpj" class="form-control"
+                placeholder="00.000.000/0000-00">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Telefone</label>
+              <input type="text" id="cfg-telefone" class="form-control"
+                placeholder="(00) 00000-0000">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card endereço -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header py-2">
+          <i class="bi bi-geo-alt me-2"></i><strong>Endereço</strong>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Endereço</label>
+              <input type="text" id="cfg-endereco" class="form-control"
+                placeholder="Rua, número, bairro...">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Cidade / UF</label>
+              <input type="text" id="cfg-cidade-uf" class="form-control"
+                placeholder="Ex: São Paulo - SP">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card servidor -->
+      <div class="card shadow-sm mb-4 border-warning">
+        <div class="card-header py-2 bg-warning bg-opacity-10">
+          <i class="bi bi-hdd-network me-2"></i><strong>Conexão com o Servidor</strong>
+          <span class="badge bg-secondary ms-2" style="font-size:.65rem">Por dispositivo</span>
+        </div>
+        <div class="card-body">
+          <label class="form-label fw-semibold">URL do Servidor</label>
+          <div class="input-group">
+            <input type="url" id="cfg-servidor-url" class="form-control"
+              placeholder="http://192.168.1.100:8000">
+            <button class="btn btn-outline-secondary" type="button" onclick="testarServidor()">
+              <i class="bi bi-plug"></i> Testar
+            </button>
+          </div>
+          <div class="form-text">
+            Endereço deste dispositivo para alcançar o servidor.
+            Salvo localmente — cada dispositivo pode ter um valor diferente.
+          </div>
+          <div id="servidor-status" class="mt-2" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- Card notinha -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header py-2">
+          <i class="bi bi-receipt me-2"></i><strong>Personalização da Notinha</strong>
+        </div>
+        <div class="card-body">
+          <label class="form-label fw-semibold">Mensagem de Rodapé</label>
+          <input type="text" id="cfg-rodape" class="form-control"
+            placeholder="Obrigado pela compra!">
+          <div class="form-text">Texto exibido no final de cada comprovante impresso.</div>
+        </div>
+      </div>
+
+      <!-- Card logo comprovante -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header py-2">
+          <i class="bi bi-image me-2"></i><strong>Logo do Comprovante</strong>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Substitui a letra inicial no topo do comprovante compartilhado (WhatsApp, etc.).</p>
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div id="logo-preview-wrap" style="width:72px;height:72px;border-radius:50%;background:#1a3a2a;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+              <span id="logo-inicial" style="color:#fff;font-size:28px;font-weight:700"></span>
+              <img id="logo-img-preview" src="" alt="" style="display:none;width:72px;height:72px;object-fit:cover">
+            </div>
+            <div class="flex-grow-1">
+              <label class="form-label fw-semibold mb-1">Selecionar imagem</label>
+              <input type="file" id="cfg-logo" class="form-control form-control-sm" accept="image/*" onchange="previewLogo(this)">
+              <div class="form-text">PNG, JPG ou WebP. Recomendado: 200×200px, fundo transparente ou escuro.</div>
+            </div>
+          </div>
+          <button class="btn btn-outline-danger btn-sm" id="btn-remover-logo" style="display:none" onclick="removerLogo()">
+            <i class="bi bi-trash me-1"></i>Remover logo
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview da notinha -->
+      <div class="card shadow-sm mb-4 border-primary">
+        <div class="card-header py-2 bg-light">
+          <i class="bi bi-eye me-2"></i><strong>Prévia da Notinha</strong>
+          <button class="btn btn-outline-secondary btn-sm float-end" onclick="atualizarPrevia()">
+            <i class="bi bi-arrow-clockwise"></i> Atualizar
+          </button>
+        </div>
+        <div class="card-body p-3" id="preview-notinha"
+             style="font-family:monospace;font-size:12px;white-space:pre;background:#fafafa;border-radius:4px">
+        </div>
+      </div>
+
+      <!-- Card formas de pagamento -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header py-2">
+          <i class="bi bi-credit-card me-2"></i><strong>Formas de Pagamento</strong>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Ative ou desative as formas aceitas no caixa. Você também pode adicionar formas personalizadas.</p>
+          <div id="lista-formas-pagamento" class="mb-3"></div>
+          <div class="d-flex gap-2 mt-2">
+            <input type="text" id="nova-forma-nome" class="form-control form-control-sm" placeholder="Nome da nova forma (ex: Vale Alimentação)" maxlength="40">
+            <button class="btn btn-outline-secondary btn-sm px-3" onclick="adicionarForma()">
+              <i class="bi bi-plus-lg"></i> Adicionar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botão salvar -->
+      <div class="d-flex gap-2 justify-content-end mb-4">
+        <button class="btn btn-success btn-lg px-5" id="btn-salvar" onclick="salvar()">
+          <i class="bi bi-check-lg me-2"></i>Salvar Configurações
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script src="/js/components.js?v=2"></script>
+<script>
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/configuracoes.html');
+  if (!requirePermissao('configuracoes')) throw '';
+
+  // Preenche campos em tempo real para prévia
+  ['cfg-nome','cfg-cnpj','cfg-telefone','cfg-endereco','cfg-cidade-uf','cfg-rodape']
+    .forEach(function(id) { var el = document.getElementById(id); if (el) el.addEventListener('input', atualizarPrevia); });
+
+  var _logoAtual = ''; // valor atual do logo (base64 ou vazio)
+
+  async function carregar() {
+    try {
+      const cfg = await api.configuracoes.listar();
+      document.getElementById('cfg-nome').value       = cfg.nome_empresa || '';
+      document.getElementById('cfg-cnpj').value       = cfg.cnpj         || '';
+      document.getElementById('cfg-telefone').value   = cfg.telefone     || '';
+      document.getElementById('cfg-endereco').value   = cfg.endereco     || '';
+      document.getElementById('cfg-cidade-uf').value  = cfg.cidade_uf    || '';
+      document.getElementById('cfg-rodape').value     = cfg.rodape       || '';
+      _logoAtual = cfg.logo_comprovante || '';
+      _aplicarLogoPreview(_logoAtual, cfg.nome_empresa || 'P');
+      try { _formasPagamento = JSON.parse(cfg.formas_pagamento || '[]'); } catch(e) { _formasPagamento = []; }
+      if (!_formasPagamento.length) _formasPagamento = JSON.parse('[{"id":"dinheiro","nome":"Dinheiro","ativo":true,"padrao":true},{"id":"pix","nome":"PIX","ativo":true,"padrao":true},{"id":"debito","nome":"Cartão Débito","ativo":true,"padrao":true},{"id":"credito","nome":"Cartão Crédito","ativo":true,"padrao":true},{"id":"boleto","nome":"Boleto","ativo":true,"padrao":true},{"id":"cheque","nome":"Cheque","ativo":true,"padrao":true},{"id":"fiado","nome":"Fiado","ativo":true,"padrao":true}]');
+      renderFormas();
+      atualizarPrevia();
+    } catch(e) {
+      showToast('Erro ao carregar configurações: ' + e.message, 'error');
+    }
+  }
+
+  function _aplicarLogoPreview(logoB64, nome) {
+    const inicial = document.getElementById('logo-inicial');
+    const img     = document.getElementById('logo-img-preview');
+    const btnRem  = document.getElementById('btn-remover-logo');
+    if (logoB64) {
+      img.src = logoB64; img.style.display = 'block';
+      inicial.style.display = 'none';
+      btnRem.style.display = '';
+    } else {
+      img.src = ''; img.style.display = 'none';
+      inicial.textContent = (nome || 'P').charAt(0).toUpperCase();
+      inicial.style.display = '';
+      btnRem.style.display = 'none';
+    }
+  }
+
+  function previewLogo(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      _logoAtual = e.target.result;
+      _aplicarLogoPreview(_logoAtual, document.getElementById('cfg-nome').value);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removerLogo() {
+    _logoAtual = '';
+    document.getElementById('cfg-logo').value = '';
+    _aplicarLogoPreview('', document.getElementById('cfg-nome').value);
+  }
+
+  function atualizarPrevia() {
+    const nome     = document.getElementById('cfg-nome').value.trim()      || 'MINHA LOJA';
+    const cnpj     = document.getElementById('cfg-cnpj').value.trim();
+    const tel      = document.getElementById('cfg-telefone').value.trim();
+    const end      = document.getElementById('cfg-endereco').value.trim();
+    const cidade   = document.getElementById('cfg-cidade-uf').value.trim();
+    const rodape   = document.getElementById('cfg-rodape').value.trim()    || 'Obrigado pela compra!';
+
+    const linhasCabecalho = [
+      '================================',
+      nome.toUpperCase().padStart(Math.floor((32 + nome.length) / 2)).slice(0, 32),
+      cnpj    ? `CNPJ: ${cnpj}` : null,
+      tel     ? `Tel: ${tel}`   : null,
+      end     ? end             : null,
+      cidade  ? cidade          : null,
+      '================================',
+    ].filter(Boolean).join('\n');
+
+    document.getElementById('preview-notinha').textContent =
+`${linhasCabecalho}
+       COMPROVANTE DE VENDA
+================================
+Nº: 000001
+Data: ${new Date().toLocaleDateString('pt-BR')}
+Vendedor: Admin
+--------------------------------
+PRODUTOS
+--------------------------------
+Produto Exemplo       1 x R$  10,00 = R$  10,00
+--------------------------------
+TOTAL:         R$  10,00
+--------------------------------
+PAGAMENTO
+--------------------------------
+Dinheiro
+================================
+${rodape.padStart(Math.floor((32 + rodape.length) / 2)).slice(0, 32)}
+================================`;
+  }
+
+  // ── URL do Servidor (localStorage) ──────────────
+  document.getElementById('cfg-servidor-url').value = localStorage.getItem('pdv_server_url') || 'http://127.0.0.1:8000';
+
+  async function testarServidor() {
+    const url = document.getElementById('cfg-servidor-url').value.trim();
+    const statusEl = document.getElementById('servidor-status');
+    if (!url) return;
+    statusEl.style.display = '';
+    statusEl.innerHTML = '<span class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>Testando...</span>';
+    try {
+      const res = await fetch(url.replace(/\/+$/, '') + '/api/configuracoes/', { signal: AbortSignal.timeout(4000) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      setApiUrl(url);
+      statusEl.innerHTML = '<span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>Conectado! URL salva.</span>';
+    } catch {
+      statusEl.innerHTML = '<span class="text-danger small"><i class="bi bi-x-circle-fill me-1"></i>Não foi possível conectar. Verifique o endereço.</span>';
+    }
+  }
+
+  async function salvar() {
+    const nome = document.getElementById('cfg-nome').value.trim();
+    if (!nome) { showToast('Informe o nome da empresa', 'error'); return; }
+
+    // Salva URL do servidor localmente
+    const urlServidor = document.getElementById('cfg-servidor-url').value.trim();
+    if (urlServidor) setApiUrl(urlServidor);
+
+    const btn = document.getElementById('btn-salvar');
+    btnLoading(btn, 'Salvando...');
+    try {
+      const payload = {
+        nome_empresa:     nome,
+        cnpj:             document.getElementById('cfg-cnpj').value.trim(),
+        telefone:         document.getElementById('cfg-telefone').value.trim(),
+        endereco:         document.getElementById('cfg-endereco').value.trim(),
+        cidade_uf:        document.getElementById('cfg-cidade-uf').value.trim(),
+        rodape:           document.getElementById('cfg-rodape').value.trim(),
+        logo_comprovante: _logoAtual,
+        formas_pagamento: JSON.stringify(_formasPagamento),
+      };
+      const cfg = await api.configuracoes.atualizar(payload);
+      // Atualiza cache e sidebar
+      window.configLoja = cfg;
+      sessionStorage.setItem('config_loja', JSON.stringify(cfg));
+      _aplicarMarcaLoja(cfg);
+      showToast('Configurações salvas com sucesso!', 'success');
+    } catch(e) {
+      showToast('Erro ao salvar: ' + e.message, 'error');
+    } finally {
+      btnLoading(btn, false);
+    }
+  }
+
+  // ── Formas de Pagamento ─────────────────────────
+  var _formasPagamento = [];
+  const _ICONES_FORMA = {
+    dinheiro:'bi-cash-coin', pix:'bi-qr-code', debito:'bi-credit-card',
+    credito:'bi-credit-card-2-front', boleto:'bi-file-text', cheque:'bi-bank',
+    fiado:'bi-wallet2'
+  };
+
+  function renderFormas() {
+    const el = document.getElementById('lista-formas-pagamento');
+    if (!_formasPagamento.length) { el.innerHTML = ''; return; }
+    el.innerHTML = _formasPagamento.map(function(f, i) {
+      var ico = _ICONES_FORMA[f.id] || 'bi-cash';
+      var taxa = parseFloat(f.taxa) || 0;
+      var taxaModo = f.taxa_modo || 'repassar';
+      return `<div class="border-bottom py-2">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi ${ico} fs-5 text-secondary"></i>
+            <span class="fw-semibold">${f.nome}</span>
+            ${f.padrao ? '' : '<span class="badge bg-secondary ms-1" style="font-size:.65rem">Personalizada</span>'}
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" ${f.ativo ? 'checked' : ''} onchange="_toggleForma(${i}, this.checked)">
+              <label class="form-check-label small">${f.ativo ? 'Ativa' : 'Inativa'}</label>
+            </div>
+            ${!f.padrao ? `<button class="btn btn-link text-danger p-0" onclick="_removerForma(${i})"><i class="bi bi-trash"></i></button>` : ''}
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-1 flex-wrap" style="padding-left:2rem">
+          <div class="d-flex align-items-center gap-1">
+            <label class="small text-muted mb-0">Taxa:</label>
+            <div class="input-group input-group-sm" style="width:105px">
+              <input type="number" class="form-control form-control-sm" min="0" max="99" step="0.01"
+                value="${taxa > 0 ? taxa : ''}" placeholder="0"
+                style="font-size:.8rem"
+                oninput="_setTaxa(${i}, this.value)">
+              <span class="input-group-text" style="font-size:.8rem">%</span>
+            </div>
+          </div>
+          <div id="taxa-modo-wrap-${i}" style="${taxa > 0 ? '' : 'display:none'}">
+            <select class="form-select form-select-sm" style="font-size:.78rem" onchange="_setTaxaModo(${i}, this.value)">
+              <option value="repassar" ${taxaModo === 'repassar' ? 'selected' : ''}>Repassar ao cliente</option>
+              <option value="informativo" ${taxaModo === 'informativo' ? 'selected' : ''}>Informativo (custo meu)</option>
+            </select>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function _setTaxa(idx, val) {
+    _formasPagamento[idx].taxa = parseFloat(val) || 0;
+    const wrap = document.getElementById('taxa-modo-wrap-' + idx);
+    if (wrap) wrap.style.display = _formasPagamento[idx].taxa > 0 ? '' : 'none';
+  }
+
+  function _setTaxaModo(idx, val) {
+    _formasPagamento[idx].taxa_modo = val;
+  }
+
+  function _toggleForma(idx, ativo) {
+    _formasPagamento[idx].ativo = ativo;
+    renderFormas();
+  }
+
+  function _removerForma(idx) {
+    _formasPagamento.splice(idx, 1);
+    renderFormas();
+  }
+
+  function adicionarForma() {
+    const nome = document.getElementById('nova-forma-nome').value.trim();
+    if (!nome) return;
+    const id = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'_');
+    if (_formasPagamento.find(function(f){ return f.id === id; })) {
+      showToast('Forma já existe!', 'error'); return;
+    }
+    _formasPagamento.push({ id: id, nome: nome, ativo: true, padrao: false });
+    document.getElementById('nova-forma-nome').value = '';
+    renderFormas();
+  }
+
+  carregar();
+</script>
+</body>
+</html>

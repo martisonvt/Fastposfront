@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Restaurante — FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    .kpi-card { border-radius:14px; border:none; }
+    .kpi-icon { font-size:2rem; opacity:.85; }
+    .kpi-value { font-size:1.65rem; font-weight:700; }
+    .kpi-label { font-size:.78rem; color:#888; }
+    .ranking-bar { height:8px; border-radius:4px; background:var(--bs-primary); }
+  </style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+
+<div class="main-content">
+  <!-- Header + filtros compactos -->
+  <div class="card mb-3">
+    <div class="card-body py-2 px-3">
+      <!-- Linha 1: título + período rápido + atualizar -->
+      <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+        <h2 class="mb-0 text-nowrap" style="font-size:1.05rem;font-weight:700;color:var(--text-main)">
+          <i class="bi bi-bar-chart-fill me-1"></i>Dashboard Restaurante
+        </h2>
+        <div class="d-flex gap-1 flex-wrap ms-auto align-items-center">
+          <button class="btn btn-sm btn-outline-secondary periodo-btn active" data-p="hoje"    onclick="setPeriodo('hoje',this)">Hoje</button>
+          <button class="btn btn-sm btn-outline-secondary periodo-btn"        data-p="7dias"   onclick="setPeriodo('7dias',this)">7 dias</button>
+          <button class="btn btn-sm btn-outline-secondary periodo-btn"        data-p="mes"     onclick="setPeriodo('mes',this)">Este mês</button>
+          <button class="btn btn-sm btn-outline-secondary periodo-btn"        data-p="custom"  onclick="setPeriodo('custom',this)">Personalizado</button>
+          <button class="btn btn-sm btn-pdv" onclick="carregar()">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+      </div>
+      <!-- Linha 2: datas customizadas (ocultas por padrão) -->
+      <div id="filtro-custom" style="display:none" class="d-flex align-items-center gap-2 flex-wrap">
+        <label class="small fw-semibold text-muted mb-0">De:</label>
+        <input type="date" id="f-inicio" class="form-control form-control-sm" style="width:132px">
+        <label class="small fw-semibold text-muted mb-0">Até:</label>
+        <input type="date" id="f-fim"    class="form-control form-control-sm" style="width:132px">
+        <button class="btn btn-sm btn-pdv" onclick="carregar()">
+          <i class="bi bi-search me-1"></i>Aplicar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tela bloqueada -->
+  <div id="tela-bloqueada" style="display:none" class="text-center py-5">
+    <i class="bi bi-lock-fill text-warning" style="font-size:3rem"></i>
+    <h4 class="mt-3">Módulo de Mesas</h4>
+    <p class="text-muted">Este módulo faz parte do <strong>Add-on Restaurante</strong>.</p>
+  </div>
+
+  <!-- Conteúdo -->
+  <div id="tela-principal">
+
+    <!-- KPI Cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="card kpi-card shadow-sm p-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="kpi-label" id="label-fat-dia">Faturamento Hoje</div>
+              <div id="kpi-fat-dia" class="kpi-value text-success">—</div>
+            </div>
+            <i class="bi bi-cash-stack kpi-icon text-success"></i>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card kpi-card shadow-sm p-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="kpi-label">Faturamento Mês</div>
+              <div id="kpi-fat-mes" class="kpi-value text-primary">—</div>
+            </div>
+            <i class="bi bi-calendar-month kpi-icon text-primary"></i>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card kpi-card shadow-sm p-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="kpi-label">Mesas Abertas</div>
+              <div id="kpi-abertas" class="kpi-value text-danger">—</div>
+            </div>
+            <i class="bi bi-grid-3x3 kpi-icon text-danger"></i>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card kpi-card shadow-sm p-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="kpi-label">Ticket Médio</div>
+              <div id="kpi-ticket" class="kpi-value text-warning">—</div>
+            </div>
+            <i class="bi bi-receipt kpi-icon text-warning"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Segunda linha de KPIs -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="card kpi-card shadow-sm p-3">
+          <div class="kpi-label">Tempo Médio (min)</div>
+          <div id="kpi-tempo" class="kpi-value">—</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card kpi-card shadow-sm p-3">
+          <div class="kpi-label">Taxa de Ocupação</div>
+          <div id="kpi-ocup" class="kpi-value">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ranking Garçons -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header fw-semibold"><i class="bi bi-trophy-fill text-warning me-2"></i>Ranking de Garçons — Hoje</div>
+      <div class="card-body p-0">
+        <div id="ranking-garcons">
+          <p class="text-muted text-center py-3 small">Carregando...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-7">
+        <div class="card shadow-sm">
+          <div class="card-header fw-semibold"><i class="bi bi-clock-history me-2 text-primary"></i>Faturamento por Hora — Hoje</div>
+          <div class="card-body"><canvas id="grafico-horas" height="180"></canvas></div>
+        </div>
+      </div>
+      <div class="col-md-5">
+        <div class="card shadow-sm">
+          <div class="card-header fw-semibold"><i class="bi bi-bar-chart me-2 text-success"></i>Mesas Mais Lucrativas</div>
+          <div class="card-body" id="grafico-mesas-body"><canvas id="grafico-mesas" height="180"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Link para mesas -->
+    <div class="text-center mt-4">
+      <a href="/pages/mesas.html" class="btn btn-pdv btn-lg">
+        <i class="bi bi-grid-3x3 me-2"></i>Ver Mapa de Mesas
+      </a>
+    </div>
+
+  </div><!-- /tela-principal -->
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script src="/js/components.js?v=2"></script>
+<script>
+document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/dashboard-restaurante.html');
+
+function fmtMoeda(v) {
+  return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+async function init() {
+  const v = getVendedor();
+  const admin = v && v.is_admin === true;
+  let perms = []; try { perms = JSON.parse(v?.permissoes || '[]'); } catch(e){}
+  const podeMesas = admin || perms.includes('mesas');
+  if (!podeMesas) {
+    document.getElementById('tela-bloqueada').style.display = '';
+    document.getElementById('tela-principal').style.display = 'none';
+    return;
+  }
+
+  try {
+    const empresa = await api.empresas.minha();
+    let modulos = [];
+    try { modulos = JSON.parse(empresa.modulos_ativos || '[]'); } catch(e) {}
+    if (!modulos.includes('mesas')) {
+      document.getElementById('tela-bloqueada').style.display = '';
+      document.getElementById('tela-principal').style.display = 'none';
+      return;
+    }
+  } catch(e) {
+    // dev local — continua
+  }
+
+  await carregar();
+}
+
+// ── Filtro de período ──
+let _periodo = 'hoje';
+
+function setPeriodo(p, btn) {
+  _periodo = p;
+  document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('filtro-custom').style.display = p === 'custom' ? 'flex' : 'none';
+  if (p !== 'custom') carregar();
+}
+
+function _getParams() {
+  const hoje = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  if (_periodo === 'hoje') {
+    const s = fmt(hoje); return { inicio: s, fim: s };
+  }
+  if (_periodo === '7dias') {
+    const ini = new Date(hoje); ini.setDate(ini.getDate() - 6);
+    return { inicio: fmt(ini), fim: fmt(hoje) };
+  }
+  if (_periodo === 'mes') {
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    return { inicio: fmt(ini), fim: fmt(hoje) };
+  }
+  // custom
+  return {
+    inicio: document.getElementById('f-inicio').value || fmt(hoje),
+    fim:    document.getElementById('f-fim').value    || fmt(hoje),
+  };
+}
+
+async function carregar() {
+  const params = _getParams();
+  const labelEl = document.getElementById('label-fat-dia');
+  if (labelEl) {
+    const labels = { hoje: 'Faturamento Hoje', '7dias': 'Fat. 7 Dias', mes: 'Fat. Este Mês', custom: 'Fat. Período' };
+    labelEl.textContent = labels[_periodo] || 'Faturamento';
+  }
+  try {
+    const d = await api.mesas.dashboard(params);
+
+    document.getElementById('kpi-fat-dia').textContent = fmtMoeda(d.faturamento_dia);
+    document.getElementById('kpi-fat-mes').textContent = fmtMoeda(d.faturamento_mes);
+    document.getElementById('kpi-abertas').textContent = d.comandas_abertas;
+    document.getElementById('kpi-ticket').textContent = fmtMoeda(d.ticket_medio);
+    document.getElementById('kpi-tempo').textContent = d.tempo_medio_minutos + ' min';
+    document.getElementById('kpi-ocup').textContent = d.taxa_ocupacao_pct + '%';
+
+    const rank = d.ranking_garcons || [];
+    const maxTotal = rank.length ? rank[0].total : 1;
+    document.getElementById('ranking-garcons').innerHTML = rank.length
+      ? rank.map((g, i) => `
+        <div class="px-3 py-2 border-bottom">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-semibold small">${i+1}. ${g.nome}</span>
+            <span class="small text-muted">${g.comandas} comanda(s) • ${fmtMoeda(g.total)}</span>
+          </div>
+          <div class="ranking-bar" style="width:${Math.round(g.total/maxTotal*100)}%"></div>
+        </div>`).join('')
+      : '<p class="text-muted text-center py-3 small">Nenhuma comanda finalizada hoje.</p>';
+
+    // Gráfico por hora
+    if (d.vendas_por_hora) {
+      const horasLabels = d.vendas_por_hora.map(h => `${h.hora}h`);
+      const horasTotais = d.vendas_por_hora.map(h => h.total);
+      const ctxH = document.getElementById('grafico-horas').getContext('2d');
+      if (window._chartHoras) window._chartHoras.destroy();
+      window._chartHoras = new Chart(ctxH, {
+        type: 'bar',
+        data: {
+          labels: horasLabels,
+          datasets: [{ label: 'Faturamento (R$)', data: horasTotais, backgroundColor: 'rgba(37,99,235,0.6)', borderRadius: 4 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    // Gráfico mesas lucrativas
+    if (d.mesas_lucrativas) {
+      const mesasLabels = d.mesas_lucrativas.map(m => m.mesa);
+      const mesasTotais = d.mesas_lucrativas.map(m => m.total);
+      const mesasBodyEl = document.getElementById('grafico-mesas-body');
+      if (window._chartMesas) window._chartMesas.destroy();
+      if (mesasLabels.length) {
+        mesasBodyEl.innerHTML = '<canvas id="grafico-mesas" height="180"></canvas>';
+        const ctxM = document.getElementById('grafico-mesas').getContext('2d');
+        window._chartMesas = new Chart(ctxM, {
+          type: 'doughnut',
+          data: {
+            labels: mesasLabels,
+            datasets: [{ data: mesasTotais, backgroundColor: ['#2563eb','#10b981','#f59e0b','#ef4444','#8b5cf6'] }]
+          },
+          options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+      } else {
+        mesasBodyEl.innerHTML = '<p class="text-muted text-center py-4 small">Nenhum dado ainda</p>';
+      }
+    }
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual / Ajuda - FastPOS</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  .ajuda-search-wrap { position: sticky; top: 0; z-index: 10; background: var(--page-bg); padding: .75rem 0 .5rem; margin-bottom: 1rem; }
+  .ajuda-search { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; color: var(--text-main); font-size: .93rem; padding: .55rem 1rem .55rem 2.6rem; width: 100%; outline: none; transition: border-color .15s; }
+  .ajuda-search:focus { border-color: var(--primary); }
+  .ajuda-search-icon { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1rem; pointer-events: none; }
+  .ajuda-search-wrap .position-relative { margin-top: .25rem; }
+
+  /* Tabs */
+  .ajuda-tabs { border-bottom: 2px solid var(--card-border); margin-bottom: 1.5rem; display: flex; gap: .2rem; flex-wrap: wrap; }
+  .ajuda-tab-btn { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; padding: .5rem .85rem; font-size: .83rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border-radius: 6px 6px 0 0; transition: all .15s; white-space: nowrap; display: flex; align-items: center; gap: .35rem; }
+  .ajuda-tab-btn:hover { color: var(--text-main); background: var(--card-bg); }
+  .ajuda-tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--card-bg); }
+  .ajuda-tab-btn .badge { font-size: .6rem; padding: .15rem .4rem; }
+
+  /* Seções de conteúdo */
+  .ajuda-panel { display: none; }
+  .ajuda-panel.active { display: block; }
+
+  .ajuda-overview { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 1.2rem 1.4rem; margin-bottom: 1.2rem; display: flex; align-items: flex-start; gap: 1rem; }
+  .ajuda-overview-icon { width: 44px; height: 44px; border-radius: 10px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: var(--primary); flex-shrink: 0; }
+  .ajuda-overview h5 { font-size: .97rem; font-weight: 700; margin-bottom: .3rem; color: var(--text-main); }
+  .ajuda-overview p { font-size: .87rem; color: var(--text-muted); margin: 0; line-height: 1.55; }
+
+  .ajuda-section-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin: 1.4rem 0 .7rem; display: flex; align-items: center; gap: .4rem; }
+  .ajuda-section-title::after { content: ''; flex: 1; height: 1px; background: var(--card-border); }
+
+  /* Tabela de ícones */
+  .icon-table { width: 100%; border-collapse: collapse; }
+  .icon-table th { font-size: .73rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); padding: .5rem .7rem; border-bottom: 1px solid var(--card-border); font-weight: 600; }
+  .icon-table td { padding: .55rem .7rem; border-bottom: 1px solid var(--card-border); vertical-align: middle; font-size: .87rem; color: var(--text-main); }
+  .icon-table tr:last-child td { border-bottom: none; }
+  .icon-table tr:hover td { background: var(--card-bg); }
+  .icon-cell { width: 42px; text-align: center; }
+  .icon-badge { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; background: var(--card-bg); border: 1px solid var(--card-border); font-size: 1rem; color: var(--text-main); }
+  .icon-name { font-weight: 600; font-size: .85rem; color: var(--text-main); }
+  .icon-desc { font-size: .83rem; color: var(--text-muted); margin-top: .1rem; }
+
+  /* Acordeão passo a passo */
+  .passo-item { border: 1px solid var(--card-border); border-radius: 8px; margin-bottom: .5rem; overflow: hidden; }
+  .passo-btn { background: var(--card-bg); border: none; width: 100%; text-align: left; padding: .75rem 1rem; font-size: .88rem; font-weight: 600; color: var(--text-main); cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: .5rem; transition: background .15s; }
+  .passo-btn:hover { background: var(--sidebar-bg); }
+  .passo-btn .passo-icon { color: var(--primary); font-size: .9rem; transition: transform .2s; flex-shrink: 0; }
+  .passo-btn[aria-expanded="true"] .passo-icon { transform: rotate(45deg); }
+  .passo-body { background: var(--page-bg); border-top: 1px solid var(--card-border); padding: .8rem 1rem 1rem; font-size: .86rem; color: var(--text-muted); line-height: 1.6; }
+  .passo-body ol, .passo-body ul { padding-left: 1.3rem; margin: .5rem 0 0; }
+  .passo-body li { margin-bottom: .3rem; }
+  .passo-body strong { color: var(--text-main); }
+
+  /* Badge "Em breve" */
+  .badge-em-breve { background: rgba(255,193,7,.15); color: #b8860b; border: 1px solid rgba(255,193,7,.3); font-size: .68rem; padding: .2rem .5rem; border-radius: 4px; font-weight: 700; }
+
+  /* Busca: resultados */
+  #ajuda-resultados { display: none; }
+  .resultado-item { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: .9rem 1.1rem; margin-bottom: .5rem; cursor: pointer; transition: border-color .15s; }
+  .resultado-item:hover { border-color: var(--primary); }
+  .resultado-modulo { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--primary); font-weight: 700; margin-bottom: .2rem; }
+  .resultado-titulo { font-size: .9rem; font-weight: 600; color: var(--text-main); margin-bottom: .2rem; }
+  .resultado-texto { font-size: .83rem; color: var(--text-muted); }
+  mark { background: rgba(42,158,95,.2); color: var(--primary); border-radius: 2px; padding: 0 .15rem; }
+
+  @media (max-width: 575px) {
+    .icon-table th:last-child, .icon-table td:last-child { display: none; }
+    .ajuda-tab-btn { font-size: .78rem; padding: .4rem .6rem; }
+  }
+</style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+
+  <!-- Header -->
+  <div class="page-header d-flex align-items-center gap-2 mb-3">
+    <i class="bi bi-book fs-4" style="color:var(--text-main)"></i>
+    <div>
+      <h4 class="mb-0 fw-bold">Manual / Ajuda</h4>
+      <small class="text-muted">Guia completo das funcionalidades do FastPOS</small>
+    </div>
+  </div>
+
+  <!-- Busca -->
+  <div class="ajuda-search-wrap">
+    <div class="position-relative">
+      <i class="bi bi-search ajuda-search-icon"></i>
+      <input type="text" class="ajuda-search" id="ajuda-search" placeholder="Buscar na ajuda... (ex: desconto, produto, relatório)" oninput="buscarAjuda(this.value)">
+    </div>
+  </div>
+
+  <!-- Resultados de busca -->
+  <div id="ajuda-resultados"></div>
+
+  <!-- Abas -->
+  <div id="ajuda-conteudo">
+    <div class="ajuda-tabs" id="ajuda-tabs">
+      <button class="ajuda-tab-btn active" onclick="trocarTab('caixa',this)"><i class="bi bi-cart3"></i> Caixa / PDV</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('dashboard',this)"><i class="bi bi-speedometer2"></i> Dashboard</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('orcamentos',this)"><i class="bi bi-file-text"></i> Orçamentos</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('vendas',this)"><i class="bi bi-receipt"></i> Vendas</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('caixa-sessoes',this)"><i class="bi bi-cash-coin"></i> Gestão de Caixa</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('produtos',this)"><i class="bi bi-box-seam"></i> Produtos</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('estoque',this)"><i class="bi bi-archive"></i> Estoque</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('clientes',this)"><i class="bi bi-people"></i> Clientes</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('fiado',this)"><i class="bi bi-wallet2"></i> Fiado</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('relatorios',this)"><i class="bi bi-bar-chart-line"></i> Relatórios</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('vendedores',this)"><i class="bi bi-person-badge"></i> Vendedores</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('configuracoes',this)"><i class="bi bi-gear-fill"></i> Configurações</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('impressora',this)"><i class="bi bi-printer"></i> Impressora</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('loja',this)"><i class="bi bi-shop"></i> Loja Online</button>
+      <button class="ajuda-tab-btn" onclick="trocarTab('mesas',this)"><i class="bi bi-grid-3x3-gap"></i> Mesas <span class="badge badge-em-breve">Em breve</span></button>
+    </div>
+
+    <!-- ════════════════ CAIXA / PDV ════════════════ -->
+    <div class="ajuda-panel active" id="panel-caixa">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-cart3"></i></div>
+        <div>
+          <h5>Caixa / PDV</h5>
+          <p>É a tela principal de vendas do FastPOS. Aqui você busca produtos, monta o carrinho, aplica descontos ou acréscimos, escolhe a forma de pagamento e finaliza a venda. Tudo foi pensado para ser rápido — ideal para uso com leitor de código de barras ou digitação direta.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Ícones e Botões</div>
+      <div class="card mb-3" style="border-color:var(--card-border)">
+        <div class="card-body p-0">
+          <table class="icon-table">
+            <thead><tr><th class="icon-cell">Ícone</th><th>Nome</th><th class="d-none d-md-table-cell">O que faz</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-search"></i></span></td>
+                <td><div class="icon-name">Busca de Produtos</div><div class="icon-desc d-md-none">Digite nome ou código de barras para adicionar ao carrinho</div></td>
+                <td class="d-none d-md-table-cell">Digite o nome ou código de barras do produto. Os resultados aparecem automaticamente. Clique no produto ou pressione Enter para adicioná-lo.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-plus-circle"></i></span></td>
+                <td><div class="icon-name">Aumentar Quantidade</div><div class="icon-desc d-md-none">Aumenta a quantidade do item no carrinho</div></td>
+                <td class="d-none d-md-table-cell">Aumenta em 1 a quantidade do item no carrinho. Você também pode clicar diretamente no número e digitar a quantidade desejada.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-dash-circle"></i></span></td>
+                <td><div class="icon-name">Diminuir Quantidade</div><div class="icon-desc d-md-none">Diminui a quantidade do item no carrinho</div></td>
+                <td class="d-none d-md-table-cell">Diminui em 1 a quantidade. Se a quantidade chegar a zero, o item é removido automaticamente do carrinho.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-pencil"></i></span></td>
+                <td><div class="icon-name">Editar Preço</div><div class="icon-desc d-md-none">Permite aumentar o preço unitário do item no carrinho</div></td>
+                <td class="d-none d-md-table-cell">Abre um campo para aumentar o preço unitário do item nesta venda. Não é possível diminuir o preço abaixo do valor cadastrado. Não altera o cadastro do produto.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-trash"></i></span></td>
+                <td><div class="icon-name">Remover Item</div><div class="icon-desc d-md-none">Remove o item do carrinho</div></td>
+                <td class="d-none d-md-table-cell">Remove o item do carrinho independente da quantidade. Útil para corrigir um produto adicionado errado.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-x-circle"></i></span></td>
+                <td><div class="icon-name">Limpar Carrinho</div><div class="icon-desc d-md-none">Remove todos os itens do carrinho de uma vez</div></td>
+                <td class="d-none d-md-table-cell">Remove todos os itens do carrinho de uma vez. O sistema pedirá confirmação antes de limpar.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-file-text"></i></span></td>
+                <td><div class="icon-name">Salvar como Orçamento</div><div class="icon-desc d-md-none">Salva o carrinho atual como orçamento sem finalizar a venda</div></td>
+                <td class="d-none d-md-table-cell">Salva todos os itens do carrinho como um orçamento sem efetuar a venda nem baixar o estoque. O orçamento fica disponível em <strong>Orçamentos</strong> e pode ser convertido em venda depois.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge" style="color:#dc3545"><i class="bi bi-dash-circle"></i></span></td>
+                <td><div class="icon-name">Desconto no Total</div><div class="icon-desc d-md-none">Aplica desconto em R$ ou % sobre o total da venda</div></td>
+                <td class="d-none d-md-table-cell">Disponível no modal de finalização. Aplica desconto em valor fixo (R$) ou percentual (%). Alterne entre os botões R$ e % antes de digitar.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge" style="color:#0d6efd"><i class="bi bi-plus-circle"></i></span></td>
+                <td><div class="icon-name">Acréscimo no Total</div><div class="icon-desc d-md-none">Aplica acréscimo em R$ ou % sobre o total da venda</div></td>
+                <td class="d-none d-md-table-cell">Disponível no modal de finalização. Adiciona um valor extra ao total (ex: taxa de entrega). Funciona igual ao desconto, em R$ ou %.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge" style="color:var(--primary)"><i class="bi bi-cash-coin"></i></span></td>
+                <td><div class="icon-name">Cobrar / Finalizar</div><div class="icon-desc d-md-none">Abre o modal de finalização da venda</div></td>
+                <td class="d-none d-md-table-cell">Botão principal do caixa. Abre o modal de finalização onde você escolhe a forma de pagamento e confirma a venda.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-calendar-event"></i></span></td>
+                <td><div class="icon-name">Lançar em Outra Data</div><div class="icon-desc d-md-none">Registra a venda em uma data retroativa</div></td>
+                <td class="d-none d-md-table-cell">Aparece no rodapé do modal de finalização. Permite registrar a venda em uma data diferente de hoje — útil para lançamentos retroativos.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-printer"></i></span></td>
+                <td><div class="icon-name">Imprimir Comprovante</div><div class="icon-desc d-md-none">Envia o comprovante para a impressora térmica</div></td>
+                <td class="d-none d-md-table-cell">Imprime o cupom da venda na impressora térmica configurada. Aparece após finalizar a venda.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-share"></i></span></td>
+                <td><div class="icon-name">Compartilhar Comprovante</div><div class="icon-desc d-md-none">Compartilha o comprovante por WhatsApp ou outro app</div></td>
+                <td class="d-none d-md-table-cell">Gera uma imagem do comprovante e abre o menu de compartilhamento do dispositivo (WhatsApp, e-mail, etc.). No computador, abre a janela de impressão.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-caixa-1" aria-expanded="false">
+          Como realizar uma venda simples
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-caixa-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Caixa / PDV</strong> no menu lateral.</li>
+            <li>Clique na barra de busca e digite o <strong>nome</strong> ou <strong>código de barras</strong> do produto.</li>
+            <li>Clique no produto nos resultados para adicioná-lo ao carrinho.</li>
+            <li>Repita para cada produto da venda.</li>
+            <li>Ajuste as quantidades usando <strong>+</strong> e <strong>−</strong> ao lado de cada item.</li>
+            <li>Clique em <strong>Cobrar</strong> quando o carrinho estiver completo.</li>
+            <li>Escolha a <strong>forma de pagamento</strong> (dinheiro, cartão, PIX...).</li>
+            <li>Clique em <strong>Confirmar Venda</strong>.</li>
+          </ol>
+        </div></div>
+      </div>
+
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-caixa-2" aria-expanded="false">
+          Como aplicar desconto ou acréscimo
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-caixa-2" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Com os itens no carrinho, clique em <strong>Cobrar</strong>.</li>
+            <li>No modal de finalização, localize o campo <strong>Desconto no Total</strong> ou <strong>Acréscimo no Total</strong>.</li>
+            <li>Escolha o tipo: clique em <strong>R$</strong> para valor fixo ou <strong>%</strong> para percentual.</li>
+            <li>Digite o valor desejado. O total é atualizado automaticamente.</li>
+            <li>Prossiga normalmente com o pagamento.</li>
+          </ol>
+          <p class="mt-2 mb-0"><i class="bi bi-info-circle me-1 text-primary"></i>Desconto e acréscimo são aplicados sobre o total da venda, não por item.</p>
+        </div></div>
+      </div>
+
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-caixa-3" aria-expanded="false">
+          Como registrar pagamento misto (ex: parte no dinheiro, parte no cartão)
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-caixa-3" class="collapse"><div class="passo-body">
+          <ol>
+            <li>No modal de finalização, clique em <strong>Misto</strong> nos botões de pagamento.</li>
+            <li>Distribua o valor entre as formas disponíveis (dinheiro, cartão, PIX).</li>
+            <li>O sistema avisa se a soma não cobrir o total.</li>
+            <li>Confirme a venda normalmente.</li>
+          </ol>
+        </div></div>
+      </div>
+
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-caixa-4" aria-expanded="false">
+          Como registrar venda no fiado (a prazo)
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-caixa-4" class="collapse"><div class="passo-body">
+          <ol>
+            <li>No modal de finalização, clique em <strong>Fiado</strong>.</li>
+            <li>Selecione o cliente na lista ou cadastre um novo.</li>
+            <li>Confirme a venda. O valor entra automaticamente no débito do cliente.</li>
+            <li>Para acompanhar os débitos, acesse <strong>Fiado</strong> no menu lateral.</li>
+          </ol>
+        </div></div>
+      </div>
+
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-caixa-5" aria-expanded="false">
+          Como lançar uma venda em data retroativa
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-caixa-5" class="collapse"><div class="passo-body">
+          <ol>
+            <li>No modal de finalização, clique em <strong>Lançar em outra data?</strong> (rodapé do modal).</li>
+            <li>Uma janela se abre para você selecionar a data.</li>
+            <li>Escolha a data desejada e clique em <strong>Confirmar data</strong>.</li>
+            <li>A venda será registrada na data escolhida, não na data de hoje.</li>
+          </ol>
+          <p class="mt-2 mb-0"><i class="bi bi-exclamation-triangle me-1 text-warning"></i>Use com cuidado: vendas retroativas afetam relatórios de datas passadas.</p>
+        </div></div>
+      </div>
+
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-caixa-6" aria-expanded="false">
+          Como corrigir um item adicionado errado
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-caixa-6" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Localize o item no carrinho.</li>
+            <li>Clique no ícone <strong><i class="bi bi-trash"></i> lixeira</strong> ao lado do item para removê-lo.</li>
+            <li>Ou ajuste a quantidade usando <strong>−</strong> até zerar (o item sai automaticamente).</li>
+            <li>Adicione o produto correto pela barra de busca.</li>
+          </ol>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ DASHBOARD ════════════════ -->
+    <div class="ajuda-panel" id="panel-dashboard">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-speedometer2"></i></div>
+        <div>
+          <h5>Dashboard</h5>
+          <p>Painel de controle com visão geral do desempenho da loja. Mostra faturamento, lucro, ticket médio, total de vendas e alertas de estoque baixo — tudo em tempo real.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Ícones e Botões</div>
+      <div class="card mb-3" style="border-color:var(--card-border)">
+        <div class="card-body p-0">
+          <table class="icon-table">
+            <thead><tr><th class="icon-cell">Ícone</th><th>Nome</th><th class="d-none d-md-table-cell">O que faz</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-calendar-day"></i></span></td>
+                <td><div class="icon-name">Hoje</div><div class="icon-desc d-md-none">Exibe os dados somente do dia atual</div></td>
+                <td class="d-none d-md-table-cell">Filtra os dados para mostrar apenas o desempenho do dia atual.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-calendar-week"></i></span></td>
+                <td><div class="icon-name">7 dias</div><div class="icon-desc d-md-none">Exibe os dados dos últimos 7 dias</div></td>
+                <td class="d-none d-md-table-cell">Mostra o desempenho acumulado dos últimos 7 dias.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-calendar-month"></i></span></td>
+                <td><div class="icon-name">Mês</div><div class="icon-desc d-md-none">Exibe os dados do mês atual</div></td>
+                <td class="d-none d-md-table-cell">Mostra o desempenho do mês corrente desde o primeiro dia.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-calendar-range"></i></span></td>
+                <td><div class="icon-name">Período personalizado</div><div class="icon-desc d-md-none">Define um intervalo de datas manualmente</div></td>
+                <td class="d-none d-md-table-cell">Permite escolher datas de início e fim para análise de qualquer período.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-exclamation-triangle"></i></span></td>
+                <td><div class="icon-name">Alerta de Estoque</div><div class="icon-desc d-md-none">Produtos com estoque abaixo do mínimo</div></td>
+                <td class="d-none d-md-table-cell">Lista os produtos que atingiram o estoque mínimo configurado. Clique para ir à tela de estoque.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-dash-1" aria-expanded="false">
+          Como ver o faturamento de um período específico
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-dash-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse o <strong>Dashboard</strong> no menu lateral.</li>
+            <li>Clique no botão <strong>Período</strong> (ícone de calendário com intervalo).</li>
+            <li>Preencha as datas de início e fim.</li>
+            <li>Os cartões e o gráfico atualizam automaticamente.</li>
+          </ol>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ ORÇAMENTOS ════════════════ -->
+    <div class="ajuda-panel" id="panel-orcamentos">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-file-text"></i></div>
+        <div>
+          <h5>Orçamentos</h5>
+          <p>Crie propostas de venda para seus clientes sem efetuar a baixa no estoque. O orçamento pode ser convertido em venda com um clique, impresso ou compartilhado. Também recebe pedidos feitos pela Loja Online.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Ícones e Botões</div>
+      <div class="card mb-3" style="border-color:var(--card-border)">
+        <div class="card-body p-0">
+          <table class="icon-table">
+            <thead><tr><th class="icon-cell">Ícone</th><th>Nome</th><th class="d-none d-md-table-cell">O que faz</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-eye"></i></span></td>
+                <td><div class="icon-name">Ver Detalhes</div><div class="icon-desc d-md-none">Abre os detalhes completos do orçamento</div></td>
+                <td class="d-none d-md-table-cell">Abre o modal com todos os itens, totais, cliente e opções de ação do orçamento.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge" style="color:var(--primary)"><i class="bi bi-cart-check"></i></span></td>
+                <td><div class="icon-name">Carregar no Caixa</div><div class="icon-desc d-md-none">Envia os itens do orçamento para o carrinho do caixa</div></td>
+                <td class="d-none d-md-table-cell">Envia todos os itens do orçamento para o carrinho do Caixa/PDV, pronto para finalizar a venda.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-printer"></i></span></td>
+                <td><div class="icon-name">Imprimir</div><div class="icon-desc d-md-none">Imprime o orçamento</div></td>
+                <td class="d-none d-md-table-cell">Abre a janela de impressão com o orçamento formatado.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-share"></i></span></td>
+                <td><div class="icon-name">Compartilhar</div><div class="icon-desc d-md-none">Compartilha o orçamento por WhatsApp ou outro app</div></td>
+                <td class="d-none d-md-table-cell">Compartilha o orçamento como imagem ou texto pelo app de sua preferência.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge text-danger"><i class="bi bi-x-circle"></i></span></td>
+                <td><div class="icon-name">Cancelar Orçamento</div><div class="icon-desc d-md-none">Marca o orçamento como cancelado</div></td>
+                <td class="d-none d-md-table-cell">Cancela o orçamento sem afetar o estoque. Ele fica registrado na aba "Cancelados".</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-shop"></i></span></td>
+                <td><div class="icon-name">Aba Site</div><div class="icon-desc d-md-none">Exibe pedidos recebidos pela Loja Online</div></td>
+                <td class="d-none d-md-table-cell">Filtra apenas os pedidos que chegaram pela Loja Online. Pedidos novos geram um som e uma notificação no menu.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-orc-1" aria-expanded="false">
+          Como criar um orçamento
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-orc-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Caixa / PDV</strong> e monte o carrinho normalmente.</li>
+            <li>No lugar de clicar em "Cobrar", clique em <strong>Salvar como Orçamento</strong>.</li>
+            <li>Selecione o cliente (opcional) e confirme.</li>
+            <li>O orçamento aparece na lista em <strong>Orçamentos</strong>.</li>
+          </ol>
+        </div></div>
+      </div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-orc-2" aria-expanded="false">
+          Como converter um orçamento em venda
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-orc-2" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Em <strong>Orçamentos</strong>, clique no ícone <strong>Ver Detalhes</strong> do orçamento desejado.</li>
+            <li>Clique em <strong>Carregar no Caixa</strong>.</li>
+            <li>O sistema abre o Caixa com os itens já no carrinho.</li>
+            <li>Finalize a venda normalmente clicando em <strong>Cobrar</strong>.</li>
+          </ol>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ VENDAS ════════════════ -->
+    <div class="ajuda-panel" id="panel-vendas">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-receipt"></i></div>
+        <div>
+          <h5>Histórico de Vendas</h5>
+          <p>Registro completo de todas as vendas realizadas. Permite consultar detalhes, reimprimir comprovantes, compartilhar e cancelar vendas. Filtre por data, status ou vendedor.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Ícones e Botões</div>
+      <div class="card mb-3" style="border-color:var(--card-border)">
+        <div class="card-body p-0">
+          <table class="icon-table">
+            <thead><tr><th class="icon-cell">Ícone</th><th>Nome</th><th class="d-none d-md-table-cell">O que faz</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-eye"></i></span></td>
+                <td><div class="icon-name">Ver Detalhes</div><div class="icon-desc d-md-none">Mostra itens, pagamento e lucro da venda</div></td>
+                <td class="d-none d-md-table-cell">Abre o modal completo da venda com itens, forma de pagamento, vendedor, cliente, desconto e lucro.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge text-danger"><i class="bi bi-x-circle"></i></span></td>
+                <td><div class="icon-name">Cancelar Venda</div><div class="icon-desc d-md-none">Cancela a venda e devolve o estoque</div></td>
+                <td class="d-none d-md-table-cell">Cancela a venda e devolve os itens ao estoque automaticamente. Requer confirmação e pode exigir senha de admin.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-file-earmark-arrow-down"></i></span></td>
+                <td><div class="icon-name">Exportar Excel</div><div class="icon-desc d-md-none">Baixa as vendas do período em planilha</div></td>
+                <td class="d-none d-md-table-cell">Gera uma planilha .xlsx com todas as vendas do período filtrado, incluindo itens e formas de pagamento.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-vend-1" aria-expanded="false">
+          Como cancelar uma venda
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-vend-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Histórico de Vendas</strong> no menu lateral.</li>
+            <li>Localize a venda pelo filtro de data ou rolando a lista.</li>
+            <li>Clique no ícone <strong>Ver Detalhes</strong>.</li>
+            <li>No modal, clique em <strong>Cancelar Venda</strong>.</li>
+            <li>Confirme a ação. O estoque dos itens é devolvido automaticamente.</li>
+          </ol>
+          <p class="mt-2 mb-0"><i class="bi bi-exclamation-triangle me-1 text-warning"></i>Somente administradores podem cancelar vendas dependendo das permissões configuradas.</p>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ GESTÃO DE CAIXA ════════════════ -->
+    <div class="ajuda-panel" id="panel-caixa-sessoes">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-cash-coin"></i></div>
+        <div>
+          <h5>Gestão de Caixa</h5>
+          <p>Controla a abertura e fechamento do caixa, registra sangrias e suprimentos, e gera o relatório de fechamento com totais por forma de pagamento. Ideal para controle de operação diária.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Ícones e Botões</div>
+      <div class="card mb-3" style="border-color:var(--card-border)">
+        <div class="card-body p-0">
+          <table class="icon-table">
+            <thead><tr><th class="icon-cell">Ícone</th><th>Nome</th><th class="d-none d-md-table-cell">O que faz</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge" style="color:var(--primary)"><i class="bi bi-unlock"></i></span></td>
+                <td><div class="icon-name">Abrir Caixa</div><div class="icon-desc d-md-none">Inicia uma nova sessão de caixa</div></td>
+                <td class="d-none d-md-table-cell">Registra a abertura do caixa com o valor inicial em dinheiro (troco/fundo).</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge text-danger"><i class="bi bi-lock"></i></span></td>
+                <td><div class="icon-name">Fechar Caixa</div><div class="icon-desc d-md-none">Encerra a sessão e gera o relatório</div></td>
+                <td class="d-none d-md-table-cell">Fecha a sessão ativa e gera um resumo com totais por forma de pagamento, sangrias e valor esperado no caixa.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge text-danger"><i class="bi bi-arrow-down-circle"></i></span></td>
+                <td><div class="icon-name">Sangria</div><div class="icon-desc d-md-none">Registra uma retirada de dinheiro do caixa</div></td>
+                <td class="d-none d-md-table-cell">Registra a retirada de dinheiro do caixa (ex: pagar fornecedor). Reduz o saldo esperado.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge" style="color:var(--primary)"><i class="bi bi-arrow-up-circle"></i></span></td>
+                <td><div class="icon-name">Suprimento</div><div class="icon-desc d-md-none">Registra uma entrada de dinheiro no caixa</div></td>
+                <td class="d-none d-md-table-cell">Registra a adição de dinheiro ao caixa (ex: troco extra). Aumenta o saldo esperado.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-sess-1" aria-expanded="false">
+          Como abrir e fechar o caixa
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-sess-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Gestão de Caixa</strong> no menu lateral.</li>
+            <li>Clique em <strong>Abrir Caixa</strong> e informe o valor inicial (troco disponível).</li>
+            <li>Realize as vendas normalmente durante o dia.</li>
+            <li>Ao final do turno, volte em Gestão de Caixa e clique em <strong>Fechar Caixa</strong>.</li>
+            <li>O sistema exibe o relatório de fechamento com totais por forma de pagamento.</li>
+          </ol>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ PRODUTOS ════════════════ -->
+    <div class="ajuda-panel" id="panel-produtos">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-box-seam"></i></div>
+        <div>
+          <h5>Produtos</h5>
+          <p>Cadastro completo de produtos com foto, preço de custo e venda, código de barras, estoque mínimo, categorias e variações (tamanho, cor, etc.). Suporta importação em massa via planilha.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Ícones e Botões</div>
+      <div class="card mb-3" style="border-color:var(--card-border)">
+        <div class="card-body p-0">
+          <table class="icon-table">
+            <thead><tr><th class="icon-cell">Ícone</th><th>Nome</th><th class="d-none d-md-table-cell">O que faz</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge" style="color:var(--primary)"><i class="bi bi-plus-lg"></i></span></td>
+                <td><div class="icon-name">Novo Produto</div><div class="icon-desc d-md-none">Abre o formulário de cadastro</div></td>
+                <td class="d-none d-md-table-cell">Abre o formulário para cadastrar um novo produto com todos os campos disponíveis.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-pencil"></i></span></td>
+                <td><div class="icon-name">Editar</div><div class="icon-desc d-md-none">Abre o produto para edição</div></td>
+                <td class="d-none d-md-table-cell">Abre o formulário do produto para alterar qualquer informação cadastrada.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge text-danger"><i class="bi bi-trash"></i></span></td>
+                <td><div class="icon-name">Excluir</div><div class="icon-desc d-md-none">Remove o produto permanentemente</div></td>
+                <td class="d-none d-md-table-cell">Remove o produto do sistema. Esta ação não pode ser desfeita. Produtos com vendas registradas não podem ser excluídos.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-upload"></i></span></td>
+                <td><div class="icon-name">Importar Planilha</div><div class="icon-desc d-md-none">Importa produtos em massa via CSV/Excel</div></td>
+                <td class="d-none d-md-table-cell">Permite cadastrar vários produtos de uma vez usando um arquivo CSV ou Excel com colunas pré-definidas.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-layers"></i></span></td>
+                <td><div class="icon-name">Variações</div><div class="icon-desc d-md-none">Gerencia variações do produto (cor, tamanho, etc.)</div></td>
+                <td class="d-none d-md-table-cell">Abre o gerenciamento de variações do produto. Cada variação pode ter estoque e preço independentes.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-prod-1" aria-expanded="false">
+          Como cadastrar um novo produto
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-prod-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Produtos</strong> no menu lateral.</li>
+            <li>Clique em <strong>+ Novo Produto</strong>.</li>
+            <li>Preencha o <strong>nome</strong>, <strong>preço de venda</strong> e os demais campos desejados.</li>
+            <li>Para controle de estoque, preencha <strong>Estoque Atual</strong> e <strong>Estoque Mínimo</strong>.</li>
+            <li>Clique em <strong>Salvar</strong>.</li>
+          </ol>
+          <p class="mt-2 mb-0"><i class="bi bi-info-circle me-1 text-primary"></i>O código de barras é opcional — se não informado, o sistema gera um código interno automático.</p>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ ESTOQUE ════════════════ -->
+    <div class="ajuda-panel" id="panel-estoque">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-archive"></i></div>
+        <div>
+          <h5>Estoque</h5>
+          <p>Acompanhe o saldo atual de cada produto, registre entradas e saídas manuais e consulte o histórico de movimentações. Produtos abaixo do mínimo aparecem em destaque para facilitar a reposição.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Ícones e Botões</div>
+      <div class="card mb-3" style="border-color:var(--card-border)">
+        <div class="card-body p-0">
+          <table class="icon-table">
+            <thead><tr><th class="icon-cell">Ícone</th><th>Nome</th><th class="d-none d-md-table-cell">O que faz</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge" style="color:var(--primary)"><i class="bi bi-plus-circle"></i></span></td>
+                <td><div class="icon-name">Entrada de Estoque</div><div class="icon-desc d-md-none">Registra compra ou recebimento de mercadoria</div></td>
+                <td class="d-none d-md-table-cell">Aumenta o saldo do produto. Use para registrar compras, recebimentos ou ajustes positivos.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge text-danger"><i class="bi bi-dash-circle"></i></span></td>
+                <td><div class="icon-name">Saída de Estoque</div><div class="icon-desc d-md-none">Registra perda, avaria ou ajuste negativo</div></td>
+                <td class="d-none d-md-table-cell">Diminui o saldo do produto. Use para perdas, avarias ou ajustes de inventário negativos.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-clock-history"></i></span></td>
+                <td><div class="icon-name">Histórico</div><div class="icon-desc d-md-none">Exibe todas as movimentações do produto</div></td>
+                <td class="d-none d-md-table-cell">Mostra todas as entradas e saídas do produto com data, quantidade e motivo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-est-1" aria-expanded="false">
+          Como registrar uma entrada de mercadoria
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-est-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Estoque</strong> no menu lateral.</li>
+            <li>Busque o produto pelo nome ou código.</li>
+            <li>Clique no ícone de <strong>Entrada</strong> (+) ao lado do produto.</li>
+            <li>Informe a <strong>quantidade</strong> recebida e o <strong>motivo</strong> (ex: Compra fornecedor).</li>
+            <li>Clique em <strong>Confirmar</strong>. O saldo é atualizado imediatamente.</li>
+          </ol>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ CLIENTES ════════════════ -->
+    <div class="ajuda-panel" id="panel-clientes">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-people"></i></div>
+        <div>
+          <h5>Clientes</h5>
+          <p>Cadastro de clientes com nome, contato e endereço. Clientes cadastrados podem ser vinculados a vendas, orçamentos e ao fiado, facilitando o controle e o histórico de compras.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-cli-1" aria-expanded="false">
+          Como cadastrar um cliente
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-cli-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Clientes</strong> no menu lateral.</li>
+            <li>Clique em <strong>+ Novo Cliente</strong>.</li>
+            <li>Preencha o <strong>nome</strong> e demais dados (telefone, endereço).</li>
+            <li>Clique em <strong>Salvar</strong>.</li>
+          </ol>
+          <p class="mt-2 mb-0"><i class="bi bi-info-circle me-1 text-primary"></i>Você também pode cadastrar o cliente na hora da venda, ao selecionar a forma de pagamento "Fiado".</p>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ FIADO ════════════════ -->
+    <div class="ajuda-panel" id="panel-fiado">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-wallet2"></i></div>
+        <div>
+          <h5>Fiado</h5>
+          <p>Gerencia vendas a prazo. Acompanhe o débito de cada cliente, registre pagamentos parciais ou totais e consulte o histórico completo de compras no fiado.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Ícones e Botões</div>
+      <div class="card mb-3" style="border-color:var(--card-border)">
+        <div class="card-body p-0">
+          <table class="icon-table">
+            <thead><tr><th class="icon-cell">Ícone</th><th>Nome</th><th class="d-none d-md-table-cell">O que faz</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge" style="color:var(--primary)"><i class="bi bi-cash"></i></span></td>
+                <td><div class="icon-name">Registrar Pagamento</div><div class="icon-desc d-md-none">Abate um valor do débito do cliente</div></td>
+                <td class="d-none d-md-table-cell">Registra um pagamento parcial ou total do débito do cliente. O saldo devedor é atualizado automaticamente.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-clock-history"></i></span></td>
+                <td><div class="icon-name">Histórico</div><div class="icon-desc d-md-none">Exibe todas as compras e pagamentos do cliente</div></td>
+                <td class="d-none d-md-table-cell">Mostra todas as transações do cliente no fiado: compras, pagamentos e saldo ao longo do tempo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-fiad-1" aria-expanded="false">
+          Como registrar o pagamento de uma dívida no fiado
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-fiad-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Fiado</strong> no menu lateral.</li>
+            <li>Localize o cliente na lista.</li>
+            <li>Clique em <strong>Registrar Pagamento</strong> (ícone de dinheiro).</li>
+            <li>Informe o valor pago e a forma de pagamento.</li>
+            <li>Clique em <strong>Confirmar</strong>. O saldo devedor é atualizado.</li>
+          </ol>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ RELATÓRIOS ════════════════ -->
+    <div class="ajuda-panel" id="panel-relatorios">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-bar-chart-line"></i></div>
+        <div>
+          <h5>Relatórios</h5>
+          <p>Análises detalhadas do negócio: faturamento por período, produtos mais vendidos, lucro por produto, formas de pagamento e desempenho por vendedor. Exportável para Excel.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-rel-1" aria-expanded="false">
+          Como ver os produtos mais vendidos
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-rel-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Relatórios</strong> no menu lateral.</li>
+            <li>Selecione o período desejado.</li>
+            <li>Role até a seção <strong>Produtos Mais Vendidos</strong>.</li>
+            <li>A tabela mostra quantidade vendida, faturamento e lucro por produto.</li>
+          </ol>
+        </div></div>
+      </div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-rel-2" aria-expanded="false">
+          Como exportar o relatório para Excel
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-rel-2" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Em <strong>Relatórios</strong>, defina o período e os filtros desejados.</li>
+            <li>Clique em <strong>Exportar Excel</strong> no topo da página.</li>
+            <li>O arquivo .xlsx é baixado automaticamente.</li>
+          </ol>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ VENDEDORES ════════════════ -->
+    <div class="ajuda-panel" id="panel-vendedores">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-person-badge"></i></div>
+        <div>
+          <h5>Vendedores</h5>
+          <p>Gerencia os usuários do sistema. Defina quem é administrador, quais módulos cada operador pode acessar e redefina senhas. Cada vendedor tem seu próprio login e histórico de vendas.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-vend2-1" aria-expanded="false">
+          Como adicionar um novo vendedor/operador
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-vend2-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Vendedores</strong> no menu lateral (apenas admin).</li>
+            <li>Clique em <strong>+ Novo Vendedor</strong>.</li>
+            <li>Informe o <strong>nome</strong>, <strong>usuário</strong> e <strong>senha</strong>.</li>
+            <li>Defina o nível: <strong>Administrador</strong> (acesso total) ou <strong>Operador</strong> (acesso restrito).</li>
+            <li>Para operadores, selecione quais módulos ele pode acessar.</li>
+            <li>Clique em <strong>Salvar</strong>.</li>
+          </ol>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ CONFIGURAÇÕES ════════════════ -->
+    <div class="ajuda-panel" id="panel-configuracoes">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-gear-fill"></i></div>
+        <div>
+          <h5>Dados da Loja / Configurações</h5>
+          <p>Define as informações que aparecem no cabeçalho do sistema e nos comprovantes: nome da empresa, endereço, CNPJ, telefone e logo. Também configura o endereço do servidor para uso no app.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-conf-1" aria-expanded="false">
+          Como atualizar os dados da loja no comprovante
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-conf-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Acesse <strong>Dados da Loja</strong> no menu lateral (apenas admin).</li>
+            <li>Preencha ou atualize os campos: <strong>nome, endereço, CNPJ, telefone</strong>.</li>
+            <li>Para alterar a logo, clique em <strong>Alterar Imagem</strong>.</li>
+            <li>Clique em <strong>Salvar</strong>. As mudanças aparecem imediatamente nos próximos comprovantes.</li>
+          </ol>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ IMPRESSORA ════════════════ -->
+    <div class="ajuda-panel" id="panel-impressora">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-printer"></i></div>
+        <div>
+          <h5>Impressora</h5>
+          <p>Configura a impressora térmica para impressão automática dos cupons. Informe o IP da impressora na rede local. Compatível com impressoras que aceitam protocolo ESC/POS via TCP.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-imp-1" aria-expanded="false">
+          Como configurar a impressora térmica
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-imp-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>Conecte a impressora à mesma rede Wi-Fi do dispositivo que usa o sistema.</li>
+            <li>Descubra o <strong>IP da impressora</strong> (geralmente impresso ao ligar a impressora ou no menu dela).</li>
+            <li>Acesse <strong>Impressora</strong> no menu lateral.</li>
+            <li>Digite o <strong>IP</strong> e a <strong>porta</strong> (padrão: 9100).</li>
+            <li>Clique em <strong>Testar Conexão</strong> para verificar.</li>
+            <li>Se o teste passar, clique em <strong>Salvar</strong>.</li>
+          </ol>
+          <p class="mt-2 mb-0"><i class="bi bi-info-circle me-1 text-primary"></i>A impressão automática só funciona quando o dispositivo e a impressora estão na mesma rede local.</p>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ LOJA ONLINE ════════════════ -->
+    <div class="ajuda-panel" id="panel-loja">
+      <div class="ajuda-overview">
+        <div class="ajuda-overview-icon"><i class="bi bi-shop"></i></div>
+        <div>
+          <h5>Loja Online</h5>
+          <p>Vitrine virtual onde seus clientes podem ver o catálogo e fazer pedidos. Os pedidos chegam automaticamente na aba "Site" dos Orçamentos com notificação sonora.</p>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Ícones e Botões</div>
+      <div class="card mb-3" style="border-color:var(--card-border)">
+        <div class="card-body p-0">
+          <table class="icon-table">
+            <thead><tr><th class="icon-cell">Ícone</th><th>Nome</th><th class="d-none d-md-table-cell">O que faz</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-qr-code"></i></span></td>
+                <td><div class="icon-name">QR Code da Loja</div><div class="icon-desc d-md-none">QR Code para o cliente acessar a loja</div></td>
+                <td class="d-none d-md-table-cell">Exibe o QR Code que o cliente escaneia para acessar sua loja online. Disponível no modal "Ver Loja Online" no menu lateral.</td>
+              </tr>
+              <tr>
+                <td class="icon-cell"><span class="icon-badge"><i class="bi bi-share"></i></span></td>
+                <td><div class="icon-name">Compartilhar Link</div><div class="icon-desc d-md-none">Compartilha o link da loja</div></td>
+                <td class="d-none d-md-table-cell">Compartilha o link da sua loja online pelo WhatsApp ou outro app.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ajuda-section-title"><i class="bi bi-list-check"></i> Tarefas Comuns</div>
+      <div class="passo-item">
+        <button class="passo-btn" data-bs-toggle="collapse" data-bs-target="#p-loja-1" aria-expanded="false">
+          Como compartilhar o link da loja com clientes
+          <i class="bi bi-plus-lg passo-icon"></i>
+        </button>
+        <div id="p-loja-1" class="collapse"><div class="passo-body">
+          <ol>
+            <li>No menu lateral, clique em <strong>Ver Loja Online</strong>.</li>
+            <li>Copie o link ou escaneie o QR Code.</li>
+            <li>Clique em <strong>Compartilhar</strong> para enviar pelo WhatsApp ou outro app.</li>
+          </ol>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ MESAS (EM BREVE) ════════════════ -->
+    <div class="ajuda-panel" id="panel-mesas">
+      <div class="ajuda-overview" style="border-color:rgba(255,193,7,.3)">
+        <div class="ajuda-overview-icon" style="background:rgba(255,193,7,.15);color:#b8860b"><i class="bi bi-grid-3x3-gap"></i></div>
+        <div>
+          <h5>Mesas <span class="badge-em-breve ms-2">Em breve</span></h5>
+          <p>O módulo de Mesas está em desenvolvimento. Em breve você poderá gerenciar mesas, comandas abertas, transferência de itens entre mesas e fechamento por mesa.</p>
+          <p class="mb-0 mt-2" style="font-size:.84rem;color:var(--text-muted)">Funcionalidades previstas: abertura e fechamento de mesa, lançamento de itens por mesa, divisão de conta, histórico de comandas e relatório por mesa.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- fim #ajuda-conteudo -->
+</div><!-- fim .main-content -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/utils.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/components.js"></script>
+<script>
+  requireLogin();
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/ajuda.html');
+
+  // ── Troca de abas ───────────────────────────────────────────────────────────
+  function trocarTab(id, btn) {
+    document.querySelectorAll('.ajuda-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.ajuda-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    var panel = document.getElementById('panel-' + id);
+    if (panel) panel.classList.add('active');
+    // Limpa busca ao trocar de aba
+    var inp = document.getElementById('ajuda-search');
+    if (inp && inp.value) { inp.value = ''; buscarAjuda(''); }
+  }
+
+  // ── Busca ───────────────────────────────────────────────────────────────────
+  // Índice de conteúdo para busca
+  var _indice = [];
+  function _buildIndice() {
+    // Coleta todos os painéis
+    document.querySelectorAll('.ajuda-panel').forEach(function(panel) {
+      var id = panel.id.replace('panel-','');
+      var tabBtn = document.querySelector('.ajuda-tab-btn[onclick*="' + id + '"]');
+      var modulo = tabBtn ? tabBtn.textContent.trim() : id;
+
+      // Overview
+      var ov = panel.querySelector('.ajuda-overview');
+      if (ov) {
+        _indice.push({ modulo: modulo, tabId: id, titulo: ov.querySelector('h5') ? ov.querySelector('h5').textContent.replace(/Em breve/,'').trim() : '', texto: ov.querySelector('p') ? ov.querySelector('p').textContent : '', tipo: 'overview' });
+      }
+      // Linhas de ícones
+      panel.querySelectorAll('.icon-table tbody tr').forEach(function(tr) {
+        var nome = tr.querySelector('.icon-name');
+        var desc = tr.querySelector('.icon-desc') || tr.querySelectorAll('td')[2];
+        if (nome) _indice.push({ modulo: modulo, tabId: id, titulo: nome.textContent.trim(), texto: desc ? desc.textContent.trim() : '', tipo: 'icone' });
+      });
+      // Passos
+      panel.querySelectorAll('.passo-item').forEach(function(item) {
+        var btn = item.querySelector('.passo-btn');
+        var corpo = item.querySelector('.passo-body');
+        if (btn) _indice.push({ modulo: modulo, tabId: id, titulo: btn.textContent.replace('+','').trim(), texto: corpo ? corpo.textContent.trim() : '', tipo: 'passo' });
+      });
+    });
+  }
+
+  function buscarAjuda(q) {
+    var res = document.getElementById('ajuda-resultados');
+    var cont = document.getElementById('ajuda-conteudo');
+    q = q.trim().toLowerCase();
+    if (!q) {
+      res.style.display = 'none';
+      cont.style.display = '';
+      return;
+    }
+    if (_indice.length === 0) _buildIndice();
+    var encontrados = _indice.filter(function(item) {
+      return (item.titulo + ' ' + item.texto + ' ' + item.modulo).toLowerCase().includes(q);
+    });
+    res.style.display = '';
+    cont.style.display = 'none';
+    if (!encontrados.length) {
+      res.innerHTML = '<div class="text-muted text-center py-4"><i class="bi bi-search me-2"></i>Nenhum resultado encontrado para "<strong>' + q + '</strong>".</div>';
+      return;
+    }
+    var tipoLabel = { overview: 'Visão Geral', icone: 'Ícone / Botão', passo: 'Passo a Passo' };
+    res.innerHTML = '<div class="text-muted small mb-3"><i class="bi bi-search me-1"></i>' + encontrados.length + ' resultado(s) para "<strong>' + q + '</strong>"</div>' +
+      encontrados.map(function(item) {
+        var trechoTexto = item.texto.length > 120 ? item.texto.substring(0,120) + '…' : item.texto;
+        return '<div class="resultado-item" onclick="irParaResultado(\'' + item.tabId + '\')">' +
+          '<div class="resultado-modulo"><i class="bi bi-folder2-open me-1"></i>' + item.modulo + ' &nbsp;·&nbsp; ' + (tipoLabel[item.tipo] || '') + '</div>' +
+          '<div class="resultado-titulo">' + item.titulo + '</div>' +
+          (trechoTexto ? '<div class="resultado-texto">' + trechoTexto + '</div>' : '') +
+          '</div>';
+      }).join('');
+  }
+
+  function irParaResultado(tabId) {
+    var tabBtn = document.querySelector('.ajuda-tab-btn[onclick*="trocarTab(\'' + tabId + '\'"]');
+    if (tabBtn) tabBtn.click();
+    document.getElementById('ajuda-search').value = '';
+    buscarAjuda('');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orçamentos - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    @media (max-width: 575px) {
+      .orc-header h2 { font-size: 1rem !important; }
+      .orc-header .btn { font-size: .78rem; padding: .25rem .55rem; }
+      .orc-filtro-datas { flex-direction: column; align-items: stretch !important; gap: .4rem !important; }
+      .orc-filtro-datas .d-flex { width: 100%; }
+      .orc-filtro-datas input[type="date"] { width: 100% !important; flex: 1; }
+      #tabs-status .nav-link { padding: .3rem .55rem; font-size: .78rem; }
+      .orc-col-data, .orc-col-status { display: none !important; }
+      .orc-acoes .btn { padding: .25rem .4rem; }
+      .orc-acoes .bi { font-size: .95rem !important; }
+      .orc-col-num { font-size: .8rem; white-space: nowrap; }
+      .orc-col-total { white-space: nowrap; }
+    }
+    @media (max-width: 380px) {
+      .orc-col-total { display: none !important; }
+      .orc-sub-total { display: inline !important; }
+      .orc-col-num { font-size: .75rem; padding-left: 4px !important; padding-right: 4px !important; }
+      .orc-acoes { padding-left: 4px !important; padding-right: 4px !important; }
+      .orc-acoes .btn { padding: .2rem .3rem; margin-right: 2px !important; }
+      .orc-acoes .bi { font-size: .85rem !important; }
+      .orc-btn-cancelar, .orc-btn-deletar { display: none !important; }
+      #tabs-status .nav-link { padding: .25rem .4rem; font-size: .73rem; }
+      .main-content { padding-left: .5rem !important; padding-right: .5rem !important; }
+    }
+
+    /* ── Aba Site ── */
+    .site-row { background: #f0fdf4 !important; }
+    .site-row:hover { background: #e6faee !important; }
+    .site-pending { background: #fff9e6 !important; }
+    .site-pending:hover { background: #fff3cc !important; }
+    .badge-loja { font-size: .55rem; background: #2a8a4a; color: #fff; border-radius: 4px; padding: .1rem .35rem; vertical-align: middle; }
+
+    /* ── Modal Detalhes — mobile otimizado (Fold 6) ── */
+    .orc-det-unit-mobile { display: none; }
+    @media (max-width: 575px) {
+      /* Oculta coluna Unit. na tabela de itens */
+      .orc-det-col-unit { display: none !important; }
+      /* Foto menor */
+      .orc-det-col-foto { width: 28px !important; }
+      .orc-det-col-foto img,
+      .orc-det-col-foto > div { width: 26px !important; height: 26px !important; }
+      /* Preço inline abaixo do nome */
+      .orc-det-unit-mobile { display: block !important; font-size: .73rem; color: #555; margin-top: 1px; }
+      /* Botões do footer compactos em 2 linhas */
+      #modalDetalhes .modal-footer { flex-wrap: wrap; gap: .35rem; padding: .6rem; }
+      #modalDetalhes .modal-footer .btn { flex: 1 1 40%; font-size: .78rem; padding: .3rem .5rem; }
+      /* Tabela de itens: impede overflow horizontal */
+      #modalDetalhes .table { width: 100%; table-layout: auto; }
+      #modalDetalhes .table td, #modalDetalhes .table th { word-break: break-word; }
+    }
+
+    /* ── Impressão ── */
+    #print-area { display: none; }
+    @media print {
+      body > * { display: none !important; }
+      #print-area {
+        display: block !important;
+        position: absolute; top: 0; left: 0;
+        width: 100%; padding: 0; margin: 0;
+        font-family: 'Courier New', Courier, monospace; font-size: 12px;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+      #print-area pre {
+        white-space: pre-wrap; word-break: normal;
+        margin: 0; font-family: inherit; font-size: 12px; line-height: 1.35;
+      }
+      @page { margin: 4mm; size: 80mm auto; }
+    }
+
+    /* Botões WhatsApp */
+    .btn-whatsapp-action {
+      background: #25d366; color: #fff; border: none;
+      border-radius: 6px; font-size: .8rem; font-weight: 600;
+      padding: .35rem .75rem; cursor: pointer;
+      display: inline-flex; align-items: center; gap: .35rem;
+      transition: background .15s;
+    }
+    .btn-whatsapp-action:hover { background: #1ea855; color: #fff; }
+  </style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+
+  <!-- Header + filtros compactos numa linha -->
+  <div class="card mb-3">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <h2 class="mb-0 text-nowrap" style="font-size:1.05rem;font-weight:700;color:var(--text-main)">
+          <i class="bi bi-file-text me-1"></i>Orçamentos
+        </h2>
+        <div class="orc-filtro-datas d-flex gap-2 align-items-center flex-wrap ms-auto">
+          <div class="d-flex align-items-center gap-1">
+            <label class="form-label mb-0 small fw-semibold text-muted text-nowrap">De:</label>
+            <input type="date" id="filtro-inicio" class="form-control form-control-sm" style="width:130px" onchange="carregarOrcamentos()">
+          </div>
+          <div class="d-flex align-items-center gap-1">
+            <label class="form-label mb-0 small fw-semibold text-muted text-nowrap">Até:</label>
+            <input type="date" id="filtro-fim" class="form-control form-control-sm" style="width:130px" onchange="carregarOrcamentos()">
+          </div>
+          <button class="btn btn-outline-secondary btn-sm" onclick="limparPeriodo()" title="Limpar filtro de data">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <a href="/pages/caixa.html" class="btn btn-dark btn-sm">
+          <i class="bi bi-cart3 me-1"></i><span class="d-none d-sm-inline">Ir para o </span>Caixa
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs de status -->
+  <ul class="nav nav-tabs mb-3" id="tabs-status" style="flex-wrap:nowrap;overflow-x:auto">
+    <li class="nav-item flex-shrink-0">
+      <button class="nav-link" data-status="" onclick="mudarAba('',this)">Todos</button>
+    </li>
+    <li class="nav-item flex-shrink-0">
+      <button class="nav-link active" data-status="ativo" onclick="mudarAba('ativo',this)">Ativos</button>
+    </li>
+    <li class="nav-item flex-shrink-0">
+      <button class="nav-link" data-status="cancelado" onclick="mudarAba('cancelado',this)">Cancelados</button>
+    </li>
+    <li class="nav-item flex-shrink-0">
+      <button class="nav-link" data-status="convertido" onclick="mudarAba('convertido',this)">Convertidos</button>
+    </li>
+    <li class="nav-item flex-shrink-0">
+      <button class="nav-link d-flex align-items-center gap-1" data-status="site" onclick="mudarAba('site',this)">
+        <i class="bi bi-shop"></i> Site
+        <span id="badge-site-tab" class="badge bg-danger" style="display:none;font-size:.6rem;padding:.2rem .4rem">0</span>
+      </button>
+    </li>
+  </ul>
+
+  <!-- Tabela -->
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="px-2">Nº</th>
+              <th class="px-2">Cliente</th>
+              <th class="px-2 text-end orc-col-total">Total</th>
+              <th class="px-2 orc-col-data">Data</th>
+              <th class="px-2 orc-col-status">Status</th>
+              <th class="px-2 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-orcamentos">
+            <tr><td colspan="6" class="text-center text-muted py-4">
+              <i class="bi bi-hourglass-split me-1"></i>Carregando...
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalhes -->
+<div class="modal fade" id="modalDetalhes" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-file-text me-2"></i>
+          <span id="det-numero"></span>
+          <span id="det-loja-badge" class="badge ms-2" style="display:none;background:#2a8a4a;font-size:.65rem">
+            <i class="bi bi-shop me-1"></i>Pedido do Site
+          </span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-3">
+          <div class="col-sm-5">
+            <div class="small text-muted">Cliente</div>
+            <div class="fw-semibold" id="det-cliente">—</div>
+            <div class="small text-muted mt-1" id="det-telefone-wrap" style="display:none">
+              <i class="bi bi-telephone me-1"></i><span id="det-telefone"></span>
+            </div>
+          </div>
+          <div class="col-sm-3">
+            <div class="small text-muted">Data</div>
+            <div class="fw-semibold" id="det-data"></div>
+          </div>
+          <div class="col-sm-4">
+            <div class="small text-muted">Status</div>
+            <div id="det-status"></div>
+          </div>
+        </div>
+
+        <!-- Info extra para pedidos do site -->
+        <div id="det-loja-info" style="display:none" class="mb-3">
+          <div id="det-endereco-wrap" class="alert alert-light py-2 px-3 mb-2" style="display:none">
+            <i class="bi bi-geo-alt-fill text-success me-1"></i>
+            <strong class="small">Endereço:</strong>
+            <span id="det-endereco" class="small ms-1"></span>
+          </div>
+          <div id="det-obs-wrap" class="alert alert-light py-2 px-3 mb-0" style="display:none">
+            <i class="bi bi-chat-left-text text-muted me-1"></i>
+            <strong class="small">Obs:</strong>
+            <span id="det-obs" class="small ms-1"></span>
+          </div>
+        </div>
+
+        <table class="table table-sm">
+          <thead class="table-light">
+            <tr>
+              <th class="orc-det-col-foto" style="width:44px"></th>
+              <th>Produto</th>
+              <th class="text-center">Qtd</th>
+              <th class="text-end orc-det-col-unit">Unit.</th>
+              <th class="text-end">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="det-itens"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" class="text-end text-muted small">Total de itens:</td>
+              <td class="text-end text-muted small fw-semibold" id="det-total-itens"></td>
+            </tr>
+            <tr id="det-desconto-row" style="display:none">
+              <td colspan="4" class="text-end text-muted small">Desconto:</td>
+              <td class="text-end text-danger fw-semibold" id="det-desconto"></td>
+            </tr>
+            <tr>
+              <td colspan="4" class="text-end fw-bold">TOTAL:</td>
+              <td class="text-end fw-bold text-success fs-6" id="det-total"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Footer padrão -->
+      <div class="modal-footer flex-column align-items-stretch gap-2 p-2" id="footer-padrao">
+        <!-- Pipeline de status (só para orçamentos em andamento) -->
+        <div id="pipeline-status" style="display:none">
+          <div class="small text-muted mb-1 px-1">Atualizar status:</div>
+          <div class="d-flex gap-1 w-100">
+            <button id="pipe-btn-em_separacao" class="btn btn-sm flex-fill"
+              onclick="definirStatus('em_separacao')">
+              <i class="bi bi-box-seam me-1"></i>Em Separação
+            </button>
+            <button id="pipe-btn-separado" class="btn btn-sm flex-fill"
+              onclick="definirStatus('separado')">
+              <i class="bi bi-check2-square me-1"></i>Separado
+            </button>
+            <button id="pipe-btn-entregue" class="btn btn-sm flex-fill"
+              onclick="definirStatus('entregue')">
+              <i class="bi bi-truck me-1"></i>Entregue
+            </button>
+          </div>
+        </div>
+        <div class="d-flex gap-2 w-100 flex-wrap">
+          <button class="btn btn-outline-secondary btn-sm" onclick="imprimirOrcamento()">
+            <i class="bi bi-printer me-1"></i>Imprimir
+          </button>
+          <button class="btn btn-outline-success btn-sm" id="btn-share-padrao" onclick="compartilharOrcamento(this)">
+            <i class="bi bi-share me-1"></i>Compartilhar
+          </button>
+          <button id="btn-carregar" class="btn btn-pdv btn-sm" onclick="carregarNoCaixa()">
+            <i class="bi bi-cart3 me-1"></i>Carregar no Caixa
+          </button>
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+
+      <!-- Footer pedido site — novo pedido (ativo) -->
+      <div class="modal-footer flex-column align-items-stretch gap-2" id="footer-loja" style="display:none">
+        <div class="d-flex gap-2 w-100">
+          <button class="btn btn-success flex-fill" id="btn-aceitar-loja" onclick="aceitarPedidoLoja()">
+            <i class="bi bi-check-circle me-1"></i>Aceitar Pedido
+          </button>
+          <button class="btn btn-danger flex-fill" onclick="recusarPedidoLoja()">
+            <i class="bi bi-x-circle me-1"></i>Recusar
+          </button>
+        </div>
+        <div class="d-flex gap-2 w-100">
+          <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="imprimirOrcamento()">
+            <i class="bi bi-printer me-1"></i>Imprimir
+          </button>
+          <button class="btn btn-secondary btn-sm flex-fill" data-bs-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+
+      <!-- Footer pedido site — pipeline (confirmado → em_separacao → pronto → a_caminho) -->
+      <div class="modal-footer flex-column align-items-stretch gap-2 p-2" id="footer-loja-pipeline" style="display:none">
+        <div class="small text-muted px-1 mb-1">Atualizar etapa do pedido:</div>
+        <div class="d-flex gap-1 w-100">
+          <button id="loja-pipe-confirmado"   class="btn btn-sm flex-fill" onclick="avancarEtapaLoja('confirmado')">
+            <i class="bi bi-check-circle me-1"></i>Confirmado
+          </button>
+          <button id="loja-pipe-em_separacao" class="btn btn-sm flex-fill" onclick="avancarEtapaLoja('em_separacao')">
+            <i class="bi bi-box-seam me-1"></i>Em Separação
+          </button>
+          <button id="loja-pipe-pronto"       class="btn btn-sm flex-fill" onclick="avancarEtapaLoja('pronto')">
+            <i class="bi bi-check2-all me-1"></i>Pronto
+          </button>
+          <button id="loja-pipe-a_caminho"    class="btn btn-sm flex-fill" onclick="avancarEtapaLoja('a_caminho')">
+            <i class="bi bi-truck me-1"></i>A Caminho
+          </button>
+        </div>
+        <div class="d-flex gap-2 w-100">
+          <button class="btn btn-success btn-sm flex-fill fw-bold" onclick="faturarPedidoLoja()">
+            <i class="bi bi-cart3 me-1"></i>Faturar no Caixa
+          </button>
+          <button class="btn btn-outline-danger btn-sm" onclick="recusarPedidoLoja()">
+            <i class="bi bi-x-circle me-1"></i>Cancelar
+          </button>
+        </div>
+        <div class="d-flex gap-2 w-100">
+          <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="imprimirOrcamento()">
+            <i class="bi bi-printer me-1"></i>Imprimir
+          </button>
+          <button class="btn btn-secondary btn-sm flex-fill" data-bs-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+
+      <!-- Footer pedido site — encerrado (cancelado / convertido) -->
+      <div class="modal-footer" id="footer-loja-encerrado" style="display:none">
+        <button class="btn btn-outline-secondary btn-sm" onclick="imprimirOrcamento()">
+          <i class="bi bi-printer me-1"></i>Imprimir
+        </button>
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script src="/js/components.js?v=2"></script>
+<script src="/js/tcp-print.js?v=1"></script>
+<script>
+document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/orcamentos.html');
+if (!requireLogin()) throw '';
+
+let todosOrcamentos = [];
+let orcamentoAtual  = null;
+let abaAtual        = 'ativo';
+const modalDetalhes = new bootstrap.Modal(document.getElementById('modalDetalhes'));
+
+// ── Datas ──────────────────────────────────────────────────────────────────────
+function _hoje() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+document.getElementById('filtro-inicio').value = _hoje();
+document.getElementById('filtro-fim').value    = _hoje();
+
+// Limpa badge ao abrir a página (aba site vai limpar ao ser clicada)
+setTimeout(() => {
+  const b = document.getElementById('badge-novos-pedidos');
+  if (b) b.style.display = 'none';
+}, 300);
+
+// ── Carregar ───────────────────────────────────────────────────────────────────
+async function carregarOrcamentos() {
+  const inicio = document.getElementById('filtro-inicio').value;
+  const fim    = document.getElementById('filtro-fim').value;
+  const params = {};
+  if (inicio) params.data_inicio = inicio;
+  if (fim)    params.data_fim    = fim;
+  try {
+    todosOrcamentos = await api.orcamentos.listar(params);
+  } catch(e) {
+    todosOrcamentos = [];
+  }
+  _atualizarBadgeSiteTab();
+  renderTabela();
+}
+
+function limparPeriodo() {
+  document.getElementById('filtro-inicio').value = '';
+  document.getElementById('filtro-fim').value    = '';
+  carregarOrcamentos();
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+const _ehLoja = o => o.observacoes && o.observacoes.includes('[PEDIDO LOJA ONLINE]');
+
+function _atualizarBadgeSiteTab() {
+  const pendentes = todosOrcamentos.filter(o => _ehLoja(o) && o.status === 'ativo').length;
+  const badge = document.getElementById('badge-site-tab');
+  if (pendentes > 0) { badge.textContent = pendentes; badge.style.display = ''; }
+  else { badge.style.display = 'none'; }
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────────
+function mudarAba(status, btn) {
+  abaAtual = status;
+  document.querySelectorAll('#tabs-status .nav-link').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTabela();
+}
+
+const _statusAtivos = ['ativo', 'em_preparo', 'em_separacao', 'separado', 'entregue'];
+
+function _filtrarLista() {
+  if (abaAtual === 'site') {
+    return todosOrcamentos.filter(_ehLoja);
+  }
+  if (abaAtual === '') {
+    return todosOrcamentos.filter(o => o.status !== 'convertido' && !_ehLoja(o));
+  }
+  // Aba "ativo" mostra todos os status intermediários (pipeline)
+  if (abaAtual === 'ativo') {
+    return todosOrcamentos.filter(o => _statusAtivos.includes(o.status) && !_ehLoja(o));
+  }
+  return todosOrcamentos.filter(o => o.status === abaAtual && !_ehLoja(o));
+}
+
+// ── Render Tabela ──────────────────────────────────────────────────────────────
+function badgeStatus(status) {
+  const map = {
+    ativo:        '<span class="badge bg-success">Ativo</span>',
+    cancelado:    '<span class="badge bg-danger">Cancelado</span>',
+    convertido:   '<span class="badge bg-secondary">Convertido</span>',
+    em_preparo:   '<span class="badge bg-warning text-dark">Em Preparo</span>',
+    em_separacao: '<span class="badge bg-info text-dark">Em Separação</span>',
+    separado:     '<span class="badge" style="background:#6f42c1;color:#fff">Separado</span>',
+    entregue:     '<span class="badge bg-dark">Entregue</span>',
+    confirmado:   '<span class="badge bg-success">Confirmado</span>',
+    pronto:       '<span class="badge" style="background:#0d9488;color:#fff">Pronto</span>',
+    a_caminho:    '<span class="badge bg-warning text-dark">A Caminho</span>',
+  };
+  return map[status] || `<span class="badge bg-light text-dark">${status}</span>`;
+}
+
+function renderTabela() {
+  const v       = getVendedor();
+  const isAdmin = v && v.is_admin === true;
+  const lista   = _filtrarLista();
+  const tbody   = document.getElementById('tabela-orcamentos');
+  const isSite  = abaAtual === 'site';
+
+  if (!lista.length) {
+    const msg = isSite ? 'Nenhum pedido do site encontrado' : 'Nenhum orçamento encontrado';
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">${msg}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(o => {
+    const convertido  = o.status === 'convertido';
+    const podeDeletar = ((o.status === 'cancelado') || convertido) && isAdmin;
+    const isPendente  = isSite && o.status === 'ativo';
+
+    let rowClass = '';
+    if (isSite) rowClass = isPendente ? 'site-pending' : 'site-row';
+
+    let acoes = '';
+    if (isSite) {
+      // Aba site: botões específicos
+      acoes = `
+        <button class="btn btn-sm btn-outline-primary py-1 px-2 me-1" onclick="abrirDetalhes(${o.id})" title="Ver detalhes">
+          <i class="bi bi-eye" style="font-size:1.1rem"></i>
+        </button>`;
+      if (isPendente) {
+        acoes += `
+        <button class="btn btn-sm btn-success py-1 px-2 me-1" onclick="aceitarPedidoLojaDir(${o.id})" title="Aceitar pedido">
+          <i class="bi bi-check-circle" style="font-size:1.1rem"></i>
+        </button>
+        <button class="btn btn-sm btn-danger py-1 px-2 orc-btn-cancelar" onclick="recusarPedidoLojaDir(${o.id})" title="Recusar pedido">
+          <i class="bi bi-x-circle" style="font-size:1.1rem"></i>
+        </button>`;
+      }
+      if (podeDeletar) {
+        acoes += `
+        <button class="btn btn-sm btn-outline-danger py-1 px-2 ms-1 orc-btn-deletar" onclick="excluirOrcamento(${o.id})" title="Excluir">
+          <i class="bi bi-trash" style="font-size:1.1rem"></i>
+        </button>`;
+      }
+    } else {
+      acoes = `
+        <button class="btn btn-sm btn-outline-primary py-1 px-2 me-1" onclick="abrirDetalhes(${o.id})" title="Ver detalhes">
+          <i class="bi bi-eye" style="font-size:1.1rem"></i>
+        </button>
+        ${convertido
+          ? `<button class="btn btn-sm btn-outline-secondary py-1 px-2 me-1" disabled title="Já convertido">
+               <i class="bi bi-cart3" style="font-size:1.1rem"></i>
+             </button>`
+          : `<button class="btn btn-sm btn-outline-success py-1 px-2 me-1" onclick="carregarNoCaixaDireto(${o.id})" title="Carregar no Caixa">
+               <i class="bi bi-cart3" style="font-size:1.1rem"></i>
+             </button>`}
+        ${o.status === 'ativo'
+          ? `<button class="btn btn-sm btn-outline-warning py-1 px-2 me-1 orc-btn-cancelar" onclick="cancelarOrcamento(${o.id})" title="Cancelar">
+               <i class="bi bi-x-circle" style="font-size:1.1rem"></i>
+             </button>`
+          : ''}
+        ${podeDeletar
+          ? `<button class="btn btn-sm btn-outline-danger py-1 px-2 orc-btn-deletar" onclick="excluirOrcamento(${o.id})" title="Excluir">
+               <i class="bi bi-trash" style="font-size:1.1rem"></i>
+             </button>`
+          : ''}`;
+    }
+
+    return `
+    <tr class="${rowClass}">
+      <td class="px-2 orc-col-num fw-semibold">
+        ${o.numero_orc}
+        ${isSite && isPendente ? '<br><span class="badge bg-warning text-dark" style="font-size:.55rem">AGUARDANDO</span>' : ''}
+      </td>
+      <td class="px-2" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        ${o.cliente ? o.cliente.nome : '<span class="text-muted">—</span>'}
+        <div class="d-sm-none mt-1 d-flex align-items-center gap-1 flex-wrap">
+          ${badgeStatus(o.status)}
+          <span class="text-muted" style="font-size:.72rem">${fmtData(o.criado_em)}</span>
+          <span class="orc-sub-total fw-bold text-success" style="display:none;font-size:.75rem">${fmtMoeda(o.total)}</span>
+        </div>
+      </td>
+      <td class="px-2 text-end fw-bold text-success orc-col-total" style="white-space:nowrap">${fmtMoeda(o.total)}</td>
+      <td class="px-2 text-muted small orc-col-data">${fmtData(o.criado_em)}</td>
+      <td class="px-2 orc-col-status">${badgeStatus(o.status)}</td>
+      <td class="px-2 text-center orc-acoes" style="white-space:nowrap">${acoes}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Abrir Modal Detalhes ───────────────────────────────────────────────────────
+function abrirDetalhes(id) {
+  orcamentoAtual = todosOrcamentos.find(o => o.id === id);
+  if (!orcamentoAtual) return;
+  const o    = orcamentoAtual;
+  const loja = _ehLoja(o);
+
+  document.getElementById('det-numero').textContent = o.numero_orc;
+  document.getElementById('det-cliente').textContent = o.cliente ? o.cliente.nome : '—';
+  document.getElementById('det-data').textContent   = fmtData(o.criado_em);
+  document.getElementById('det-status').innerHTML   = badgeStatus(o.status);
+
+  // Badge loja
+  document.getElementById('det-loja-badge').style.display = loja ? '' : 'none';
+
+  // Telefone do cliente
+  const tel = o.cliente && o.cliente.telefone;
+  document.getElementById('det-telefone-wrap').style.display = tel ? '' : 'none';
+  document.getElementById('det-telefone').textContent = tel || '';
+
+  // Info extra loja: endereço e observações
+  document.getElementById('det-loja-info').style.display = loja ? '' : 'none';
+  if (loja && o.observacoes) {
+    // Parse: "[PEDIDO LOJA ONLINE] | Endereço: X | obs"
+    const partes = o.observacoes.split('|').map(s => s.trim()).filter(Boolean);
+    let endereco = '', obsText = '';
+    partes.forEach(p => {
+      if (p.startsWith('[PEDIDO LOJA ONLINE]')) return;
+      if (p.startsWith('Endereço:')) endereco = p.replace('Endereço:', '').trim();
+      else obsText = obsText ? obsText + ' | ' + p : p;
+    });
+    const endWrap = document.getElementById('det-endereco-wrap');
+    endWrap.style.display = endereco ? '' : 'none';
+    document.getElementById('det-endereco').textContent = endereco;
+    const obsWrap = document.getElementById('det-obs-wrap');
+    obsWrap.style.display = obsText ? '' : 'none';
+    document.getElementById('det-obs').textContent = obsText;
+  }
+
+  // Itens
+  document.getElementById('det-itens').innerHTML = o.itens.map(i => `
+    <tr>
+      <td class="py-1 orc-det-col-foto">${i.foto_url
+        ? `<img src="${i.foto_url}" style="width:36px;height:36px;object-fit:cover;border-radius:4px">`
+        : `<div style="width:36px;height:36px;background:#f0f0f0;border-radius:4px;display:flex;align-items:center;justify-content:center"><i class="bi bi-image text-muted" style="font-size:.9rem"></i></div>`}</td>
+      <td class="py-1">${i.nome}<span class="orc-det-unit-mobile text-muted">Un: ${fmtMoeda(i.preco_unitario)}</span></td>
+      <td class="text-center py-1">${i.quantidade}</td>
+      <td class="text-end py-1 orc-det-col-unit">${fmtMoeda(i.preco_unitario)}</td>
+      <td class="text-end py-1">${fmtMoeda(i.subtotal)}</td>
+    </tr>`).join('');
+
+  const totalItens = o.itens.reduce((s, i) => s + (i.quantidade || 0), 0);
+  document.getElementById('det-total-itens').textContent = totalItens + (totalItens === 1 ? ' item' : ' itens');
+
+  const temDesc = o.desconto > 0;
+  document.getElementById('det-desconto-row').style.display = temDesc ? '' : 'none';
+  if (temDesc) document.getElementById('det-desconto').textContent = '-' + fmtMoeda(o.desconto);
+  document.getElementById('det-total').textContent = fmtMoeda(o.total);
+
+  // Ajusta colspan do tfoot: no mobile a coluna Unit. fica oculta (4 colunas → 3)
+  var colspanTfoot = window.innerWidth <= 575 ? 3 : 4;
+  document.querySelectorAll('#modalDetalhes tfoot td[colspan]').forEach(function(td) {
+    td.colSpan = colspanTfoot;
+  });
+
+  // Footers
+  document.getElementById('footer-padrao').style.display          = 'none';
+  document.getElementById('footer-loja').style.display            = 'none';
+  document.getElementById('footer-loja-pipeline').style.display   = 'none';
+  document.getElementById('footer-loja-encerrado').style.display  = 'none';
+
+  const _lojaStatusPipeline = ['confirmado', 'em_separacao', 'pronto', 'a_caminho'];
+
+  if (loja) {
+    if (o.status === 'ativo') {
+      document.getElementById('footer-loja').style.display = '';
+    } else if (_lojaStatusPipeline.includes(o.status)) {
+      document.getElementById('footer-loja-pipeline').style.display = '';
+      _renderPipelineLoja(o.status);
+    } else {
+      // cancelado / convertido
+      document.getElementById('footer-loja-encerrado').style.display = '';
+    }
+  } else {
+    document.getElementById('footer-padrao').style.display = '';
+    const btnCarregar = document.getElementById('btn-carregar');
+    btnCarregar.style.display = o.status === 'convertido' ? 'none' : '';
+
+    // Pipeline de separação: visível para orçamentos em andamento (não convertidos/cancelados)
+    const pipeStatuses = ['ativo', 'em_preparo', 'em_separacao', 'separado', 'entregue'];
+    const pipeline = document.getElementById('pipeline-status');
+    if (pipeStatuses.includes(o.status)) {
+      pipeline.style.display = '';
+      // Estilo dos botões: atual = sólido, próximos = outline, anteriores = outline escuro
+      const ordem = ['em_separacao', 'separado', 'entregue'];
+      const idxAtual = ordem.indexOf(o.status);
+      ordem.forEach((s, i) => {
+        const btn = document.getElementById(`pipe-btn-${s}`);
+        if (i === idxAtual) {
+          // Status atual — botão sólido destacado
+          btn.className = 'btn btn-sm flex-fill btn-primary disabled';
+        } else if (i > idxAtual) {
+          // Próximos passos — outline clicável
+          btn.className = 'btn btn-sm flex-fill btn-outline-primary';
+        } else {
+          // Passos já feitos — outline apagado
+          btn.className = 'btn btn-sm flex-fill btn-outline-secondary';
+        }
+      });
+    } else {
+      pipeline.style.display = 'none';
+    }
+  }
+
+  modalDetalhes.show();
+}
+
+// ── Pipeline de separação ──────────────────────────────────────────────────────
+async function definirStatus(novoStatus) {
+  if (!orcamentoAtual) return;
+  const labels = { em_separacao: 'Em Separação', separado: 'Separado', entregue: 'Entregue' };
+  try {
+    await api.orcamentos.atualizar(orcamentoAtual.id, { status: novoStatus });
+    orcamentoAtual.status = novoStatus;
+    // Atualiza badge no modal
+    document.getElementById('det-status').innerHTML = badgeStatus(novoStatus);
+    // Atualiza botões do pipeline
+    const ordem = ['em_separacao', 'separado', 'entregue'];
+    const idxAtual = ordem.indexOf(novoStatus);
+    ordem.forEach((s, i) => {
+      const btn = document.getElementById(`pipe-btn-${s}`);
+      if (i === idxAtual) {
+        btn.className = 'btn btn-sm flex-fill btn-primary disabled';
+      } else if (i > idxAtual) {
+        btn.className = 'btn btn-sm flex-fill btn-outline-primary';
+      } else {
+        btn.className = 'btn btn-sm flex-fill btn-outline-secondary';
+      }
+    });
+    showToast(`Status atualizado: ${labels[novoStatus]}`, 'success');
+    // Atualiza a lista em background sem fechar o modal
+    carregarOrcamentos();
+  } catch(e) {
+    showToast(e.message || 'Erro ao atualizar status', 'error');
+  }
+}
+
+// ── Pipeline de entrega — loja online ─────────────────────────────────────────
+
+// Detecta se o pedido tem endereço (entrega) ou não (retirada)
+function _temEntrega(o) {
+  return o.observacoes && o.observacoes.includes('Endereço:');
+}
+
+// Mensagens WhatsApp por etapa
+function _msgEtapaLoja(o, etapa) {
+  const nome  = o.cliente ? o.cliente.nome.split(' ')[0] : 'cliente';
+  const num   = o.numero_orc;
+  const total = fmtMoeda(o.total);
+  const entrega = _temEntrega(o);
+  const msgs = {
+    confirmado:   `Olá ${nome}! 🎉 Seu pedido *${num}* foi confirmado!\nTotal: *${total}*\nJá estamos separando tudo para você. 🛍️`,
+    em_separacao: `Olá ${nome}! 📦 Seu pedido *${num}* está sendo separado. Em breve ficará pronto!`,
+    pronto:       entrega
+      ? `Olá ${nome}! ✅ Seu pedido *${num}* está pronto e sairá para entrega em breve! 🛵`
+      : `Olá ${nome}! ✅ Seu pedido *${num}* está pronto para retirada! Pode vir buscar quando quiser. 🏪`,
+    a_caminho:    entrega
+      ? `Olá ${nome}! 🛵 Seu pedido *${num}* saiu para entrega! Logo chegará até você.`
+      : `Olá ${nome}! 🏪 Seu pedido *${num}* está aguardando sua retirada. Estamos te esperando!`,
+    recusar:      `Olá ${nome}, infelizmente não conseguimos atender seu pedido *${num}* no momento. Pedimos desculpas pelo inconveniente.`,
+  };
+  return msgs[etapa] || '';
+}
+
+function _enviarWhatsAppLoja(o, etapa) {
+  const tel = o.cliente && o.cliente.telefone;
+  if (!tel) { showToast('Cliente sem telefone — WhatsApp não disponível', 'warning'); return; }
+  const num = tel.replace(/\D/g, '');
+  const msg = _msgEtapaLoja(o, etapa);
+  window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// Renderiza os botões do pipeline com destaque visual
+function _renderPipelineLoja(statusAtual) {
+  const ordem = ['confirmado', 'em_separacao', 'pronto', 'a_caminho'];
+  const idxAtual = ordem.indexOf(statusAtual);
+  ordem.forEach((s, i) => {
+    const btn = document.getElementById(`loja-pipe-${s}`);
+    if (!btn) return;
+    if (i === idxAtual) {
+      btn.className = 'btn btn-sm flex-fill btn-primary disabled';
+    } else if (i > idxAtual) {
+      btn.className = 'btn btn-sm flex-fill btn-outline-primary';
+    } else {
+      btn.className = 'btn btn-sm flex-fill btn-outline-secondary';
+    }
+  });
+}
+
+async function aceitarPedidoLoja() {
+  if (!orcamentoAtual) return;
+  const btn = document.getElementById('btn-aceitar-loja');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Aceitando...';
+  try {
+    await api.orcamentos.atualizar(orcamentoAtual.id, { status: 'confirmado' });
+    orcamentoAtual.status = 'confirmado';
+    _enviarWhatsAppLoja(orcamentoAtual, 'confirmado');
+    // Troca footer para o pipeline sem fechar o modal
+    document.getElementById('footer-loja').style.display = 'none';
+    document.getElementById('footer-loja-pipeline').style.display = '';
+    _renderPipelineLoja('confirmado');
+    document.getElementById('det-status').innerHTML = badgeStatus('confirmado');
+    showToast('Pedido confirmado! Mensagem enviada ao cliente.', 'success');
+    carregarOrcamentos();
+  } catch(e) {
+    showToast(e.message || 'Erro ao aceitar pedido', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Aceitar Pedido';
+  }
+}
+
+async function avancarEtapaLoja(novoStatus) {
+  if (!orcamentoAtual) return;
+  try {
+    await api.orcamentos.atualizar(orcamentoAtual.id, { status: novoStatus });
+    orcamentoAtual.status = novoStatus;
+    _enviarWhatsAppLoja(orcamentoAtual, novoStatus);
+    _renderPipelineLoja(novoStatus);
+    document.getElementById('det-status').innerHTML = badgeStatus(novoStatus);
+    const labels = { confirmado: 'Confirmado', em_separacao: 'Em Separação', pronto: 'Pronto', a_caminho: 'A Caminho' };
+    showToast(`Etapa: ${labels[novoStatus]} — mensagem enviada ao cliente.`, 'success');
+    carregarOrcamentos();
+  } catch(e) {
+    showToast(e.message || 'Erro ao atualizar etapa', 'error');
+  }
+}
+
+function faturarPedidoLoja() {
+  if (!orcamentoAtual) return;
+  modalDetalhes.hide();
+  carregarNoCaixaDireto(orcamentoAtual.id);
+}
+
+async function recusarPedidoLoja() {
+  if (!orcamentoAtual) return;
+  if (!confirm('Recusar este pedido do site?')) return;
+  try {
+    await api.orcamentos.atualizar(orcamentoAtual.id, { status: 'cancelado' });
+    _whatsApp(orcamentoAtual, 'recusar');
+    showToast('Pedido recusado', 'success');
+    modalDetalhes.hide();
+    await carregarOrcamentos();
+  } catch(e) {
+    showToast(e.message || 'Erro ao recusar', 'error');
+  }
+}
+
+// Versão direta pela tabela (sem abrir modal)
+async function aceitarPedidoLojaDir(id) {
+  orcamentoAtual = todosOrcamentos.find(o => o.id === id);
+  if (!orcamentoAtual) return;
+  try {
+    await api.orcamentos.atualizar(id, { status: 'confirmado' });
+    orcamentoAtual.status = 'confirmado';
+    _enviarWhatsAppLoja(orcamentoAtual, 'confirmado');
+    showToast('Pedido confirmado! Abra o pedido para avançar as etapas.', 'success');
+    await carregarOrcamentos();
+  } catch(e) {
+    showToast(e.message || 'Erro ao aceitar pedido', 'error');
+  }
+}
+
+async function recusarPedidoLojaDir(id) {
+  orcamentoAtual = todosOrcamentos.find(o => o.id === id);
+  if (!orcamentoAtual) return;
+  if (!confirm(`Recusar pedido ${orcamentoAtual.numero_orc}?`)) return;
+  try {
+    await api.orcamentos.atualizar(id, { status: 'cancelado' });
+    _enviarWhatsAppLoja(orcamentoAtual, 'recusar');
+    showToast('Pedido recusado', 'success');
+    await carregarOrcamentos();
+  } catch(e) {
+    showToast(e.message || 'Erro ao recusar', 'error');
+  }
+}
+
+// ── Caixa ──────────────────────────────────────────────────────────────────────
+function carregarNoCaixaDireto(id) {
+  orcamentoAtual = todosOrcamentos.find(o => o.id === id);
+  if (!orcamentoAtual) return;
+  carregarNoCaixa();
+}
+
+function carregarNoCaixa() {
+  if (!orcamentoAtual) return;
+  const carrinhoRestaurado = orcamentoAtual.itens.map(i => ({
+    produto: { id: i.produto_id, nome: i.nome, unidade: 'UN', estoque_atual: 9999 },
+    quantidade: i.quantidade,
+    preco_unitario: i.preco_unitario,
+    preco_original: i.preco_unitario,
+    desc_tipo: 'val',
+    desc_valor: 0,
+    desc_aberto: false,
+  }));
+  localStorage.setItem('pdv_carrinho', JSON.stringify(carrinhoRestaurado));
+  if (orcamentoAtual.cliente) {
+    localStorage.setItem('pdv_cliente', JSON.stringify(orcamentoAtual.cliente));
+  }
+  if (orcamentoAtual.desconto > 0) {
+    // caixa.html espera centavos (inteiro), ex: R$5,50 → "550"
+    localStorage.setItem('pdv_desconto', String(Math.round(orcamentoAtual.desconto * 100)));
+  }
+  localStorage.setItem('pdv_orcamento_id', String(orcamentoAtual.id));
+  window.location.href = '/pages/caixa.html';
+}
+
+// ── Cancelar / Excluir ─────────────────────────────────────────────────────────
+async function cancelarOrcamento(id) {
+  if (!confirm('Cancelar este orçamento?')) return;
+  try {
+    await api.orcamentos.atualizar(id, { status: 'cancelado' });
+    showToast('Orçamento cancelado', 'success');
+    await carregarOrcamentos();
+  } catch(e) {
+    showToast(e.message || 'Erro ao cancelar', 'error');
+  }
+}
+
+async function excluirOrcamento(id) {
+  if (!confirm('Excluir este orçamento?')) return;
+  try {
+    await api.orcamentos.deletar(id);
+    showToast('Orçamento excluído', 'success');
+    await carregarOrcamentos();
+  } catch(e) {
+    showToast(e.message || 'Erro ao excluir', 'error');
+  }
+}
+
+// ── Imprimir ───────────────────────────────────────────────────────────────────
+async function imprimirOrcamento() {
+  if (!orcamentoAtual) return;
+  const cfg      = window.configLoja || {};
+  const nomeLoja = cfg.nome_empresa ? cfg.nome_empresa.toUpperCase() : 'ORÇAMENTO';
+  const linhaItens = orcamentoAtual.itens.map(i =>
+    `${i.nome.padEnd(20)} ${String(i.quantidade).padStart(5)} x ${fmtMoeda(i.preco_unitario).padStart(9)} = ${fmtMoeda(i.subtotal).padStart(9)}`
+  ).join('\n');
+  const linhaTotal = orcamentoAtual.desconto > 0
+    ? `Subtotal:      ${fmtMoeda(orcamentoAtual.subtotal)}\nDesconto:     -${fmtMoeda(orcamentoAtual.desconto)}\nTOTAL:         ${fmtMoeda(orcamentoAtual.total)}`
+    : `TOTAL:         ${fmtMoeda(orcamentoAtual.total)}`;
+  const texto = `================================
+${nomeLoja}
+================================
+           ORÇAMENTO
+================================
+No: ${orcamentoAtual.numero_orc}
+Data: ${fmtData(orcamentoAtual.criado_em)}
+Cliente: ${orcamentoAtual.cliente ? orcamentoAtual.cliente.nome : '—'}
+--------------------------------
+PRODUTOS
+--------------------------------
+${linhaItens}
+--------------------------------
+${linhaTotal}
+================================
+  Este orçamento não é uma nota fiscal.
+================================`;
+  const tipo = localStorage.getItem('impressora_tipo') || 'sistema';
+  if (tipo === 'wifi') {
+    const ip = localStorage.getItem('impressora_ip') || '';
+    if (!ip) { showToast('Configure o IP da impressora em Impressora (menu lateral)', 'warning'); return; }
+    const btn = document.querySelector('#modalDetalhes .btn-outline-secondary');
+    if (btn) btnLoading(btn, true);
+    try {
+      await TcpPrint.imprimir(texto);
+      showToast('Impresso com sucesso!', 'success');
+    } catch(e) {
+      showToast('Erro ao imprimir: ' + e.message, 'error');
+    } finally {
+      if (btn) btnLoading(btn, false);
+    }
+  } else {
+    const printArea = document.getElementById('print-area');
+    printArea.innerHTML = `<pre style="font-family:monospace;font-size:12px;white-space:pre-wrap;padding:0;margin:0">${texto}</pre>`;
+    window.print();
+    setTimeout(() => { printArea.innerHTML = ''; }, 1000);
+  }
+}
+
+// ── Compartilhar Orçamento como Imagem ────────────────────────────────────────
+async function compartilharOrcamento(btnEl) {
+  if (!orcamentoAtual) return;
+  const o = orcamentoAtual;
+  const dados = {
+    tipo:      'orcamento',
+    numero:    o.numero_orc,
+    vendedor:  null,
+    cliente:   o.cliente ? o.cliente.nome : null,
+    itens: o.itens.map(i => ({
+      nome:           i.nome,
+      foto_url:       i.foto_url || null,
+      quantidade:     i.quantidade,
+      unidade:        'UN',
+      preco_unitario: i.preco_unitario,
+      preco_original: null,
+      subtotal:       i.subtotal,
+    })),
+    total:      o.total,
+    subtotal:   o.subtotal || o.total,
+    desconto:   o.desconto || 0,
+    pagamentos: [],
+    criado_em:  o.criado_em,
+  };
+  await _compartilharComoImagem(dados, btnEl);
+}
+
+carregarOrcamentos();
+</script>
+<div id="print-area"></div>
+</body>
+</html>

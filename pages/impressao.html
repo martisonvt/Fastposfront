@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Impressora - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+</head>
+<body>
+
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div class="page-header">
+    <div>
+      <h2><i class="bi bi-printer me-2" style="color:#1a2540"></i>Configuração de Impressora</h2>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-7 col-lg-5">
+
+      <!-- Tipo de impressora -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold"><i class="bi bi-sliders me-1"></i>Tipo de Impressora</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="tipo-card" id="tipo-wifi" onclick="selecionarTipo('wifi')">
+                <i class="bi bi-wifi fs-2 d-block mb-1 text-success"></i>
+                <div class="fw-semibold">Wi-Fi / Rede</div>
+                <small class="text-muted">TCP porta 9100<br>Bematech, Epson, etc.</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="tipo-card" id="tipo-sistema" onclick="selecionarTipo('sistema')">
+                <i class="bi bi-phone fs-2 d-block mb-1 text-primary"></i>
+                <div class="fw-semibold">Sistema / Bluetooth</div>
+                <small class="text-muted">Diálogo nativo do Android<br>Bluetooth ou USB</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configurações Wi-Fi -->
+      <div class="card shadow-sm mb-3" id="card-wifi" style="display:none">
+        <div class="card-header fw-semibold"><i class="bi bi-wifi me-1"></i>Impressora Wi-Fi (TCP)</div>
+        <div class="card-body">
+          <div class="alert alert-info py-2 small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Na impressora Bematech MP-4200 TH, acesse <strong>Menu &gt; Configurações &gt; Wi-Fi</strong>
+            para ver o IP. A porta padrão é <strong>9100</strong>.
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">IP da Impressora</label>
+            <input type="text" id="ip-impressora" class="form-control" placeholder="Ex: 192.168.1.100"
+              inputmode="decimal" autocomplete="off">
+            <div class="form-text">IP fixo recomendado. Configure no roteador Wi-Fi.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Porta TCP</label>
+            <input type="number" id="porta-impressora" class="form-control" value="9100" min="1" max="65535">
+          </div>
+          <button class="btn btn-outline-success w-100 mb-2" onclick="testarConexao()" id="btn-testar">
+            <i class="bi bi-plug me-1"></i>Testar Conexão
+          </button>
+          <div id="status-teste" class="small mt-1 text-center" style="min-height:1.4rem"></div>
+        </div>
+      </div>
+
+      <!-- Info sistema -->
+      <div class="card shadow-sm mb-3" id="card-sistema" style="display:none">
+        <div class="card-header fw-semibold"><i class="bi bi-phone me-1"></i>Impressão pelo Sistema</div>
+        <div class="card-body">
+          <p class="text-muted small mb-2">
+            Usa o diálogo de impressão nativo do Android. Funciona com:
+          </p>
+          <ul class="small text-muted mb-0">
+            <li>Impressoras Bluetooth pareadas no celular</li>
+            <li>Impressoras USB conectadas via cabo OTG</li>
+            <li>Google Cloud Print / Save as PDF</li>
+          </ul>
+          <div class="alert alert-warning py-2 small mt-3 mb-0">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Para impressoras térmicas Bematech, <strong>Wi-Fi é mais confiável</strong> e imprime sem diálogos.
+          </div>
+        </div>
+      </div>
+
+      <!-- Impressão automática -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold"><i class="bi bi-lightning-charge me-1"></i>Impressão Automática</div>
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-2">
+            <div>
+              <div class="fw-semibold" style="font-size:.92rem">Imprimir ao finalizar venda</div>
+              <div class="text-muted" style="font-size:.78rem">A nota é impressa automaticamente assim que a venda é confirmada no caixa</div>
+            </div>
+            <div class="form-check form-switch mb-0 flex-shrink-0">
+              <input class="form-check-input" type="checkbox" role="switch" id="toggle-impressao-auto"
+                style="width:2.5rem;height:1.25rem;cursor:pointer" onchange="toggleAutoImpressao(this)">
+            </div>
+          </div>
+          <div id="status-auto" class="mt-2 small text-center" style="min-height:1.2rem"></div>
+        </div>
+      </div>
+
+      <!-- Botão salvar -->
+      <button class="btn btn-pdv w-100 fw-bold py-2 mb-3" onclick="salvarConfiguracoes()" id="btn-salvar">
+        <i class="bi bi-floppy me-1"></i>Salvar Configurações
+      </button>
+
+      <!-- Impressão de teste -->
+      <div class="card shadow-sm mb-3" id="card-teste-impressao" style="display:none">
+        <div class="card-header fw-semibold"><i class="bi bi-file-text me-1"></i>Imprimir Página de Teste</div>
+        <div class="card-body">
+          <p class="text-muted small mb-2">Envia uma impressão de teste para verificar se está funcionando corretamente.</p>
+          <button class="btn btn-outline-secondary w-100" onclick="imprimirTeste()" id="btn-impr-teste">
+            <i class="bi bi-printer me-1"></i>Imprimir Teste
+          </button>
+          <div id="status-impressao-teste" class="small mt-1 text-center" style="min-height:1.4rem"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+.tipo-card {
+  border: 2px solid #dee2e6;
+  border-radius: 12px;
+  padding: 1rem .5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all .15s;
+  background: #fff;
+  height: 100%;
+}
+.tipo-card:hover { border-color: var(--primary); background: var(--primary-light); }
+.tipo-card.selected { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 0 3px rgba(45,138,78,.15); }
+</style>
+
+
+<!-- Modal: senha admin para desativar impressão automática -->
+<div class="modal fade" id="modalSenhaAuto" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title fw-bold"><i class="bi bi-lock me-2 text-warning"></i>Autorização de Admin</h6>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-2">Informe as credenciais de um <strong>administrador</strong> para desativar a impressão automática neste dispositivo.</p>
+        <input type="email" id="inp-nome-admin" class="form-control form-control-sm mb-2"
+          placeholder="E-mail do admin" autocomplete="off"
+          onkeydown="if(event.key==='Enter') document.getElementById('inp-senha-auto').focus()">
+        <input type="password" id="inp-senha-auto" class="form-control form-control-sm"
+          placeholder="Senha do admin" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') confirmarSenhaAuto()">
+        <div id="err-senha-auto" class="text-danger small mt-1" style="display:none"></div>
+      </div>
+      <div class="modal-footer py-2 gap-2">
+        <button class="btn btn-outline-secondary btn-sm" onclick="cancelarSenhaAuto()">Cancelar</button>
+        <button id="btn-confirmar-senha-auto" class="btn btn-warning btn-sm fw-bold" onclick="confirmarSenhaAuto()">
+          <i class="bi bi-unlock me-1"></i>Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script src="/js/components.js?v=2"></script>
+<script src="/js/tcp-print.js?v=1"></script>
+<script>
+  if (!requireLogin()) throw '';
+  requirePermissao('impressora');
+  document.getElementById('sidebar-container').innerHTML = renderSidebar('/pages/impressao.html');
+
+  let tipoSelecionado = localStorage.getItem('impressora_tipo') || '';
+
+  function selecionarTipo(tipo) {
+    tipoSelecionado = tipo;
+    document.getElementById('tipo-wifi').classList.toggle('selected', tipo === 'wifi');
+    document.getElementById('tipo-sistema').classList.toggle('selected', tipo === 'sistema');
+    document.getElementById('card-wifi').style.display    = tipo === 'wifi'    ? '' : 'none';
+    document.getElementById('card-sistema').style.display = tipo === 'sistema' ? '' : 'none';
+    document.getElementById('card-teste-impressao').style.display = tipo ? '' : 'none';
+  }
+
+  // Chave de impressão por usuário (evita que um usuário altere a config do outro)
+  function _keyAutoImp() {
+    const v = getVendedor();
+    return 'impressao_automatica_' + (v ? v.id : 'default');
+  }
+
+  // Carrega configurações salvas
+  (function() {
+    const tipo  = localStorage.getItem('impressora_tipo') || '';
+    const ip    = localStorage.getItem('impressora_ip')   || '';
+    const porta = localStorage.getItem('impressora_porta') || '9100';
+    if (tipo)  selecionarTipo(tipo);
+    if (ip)    document.getElementById('ip-impressora').value   = ip;
+    document.getElementById('porta-impressora').value = porta;
+    // Toggle auto impressão — por usuário
+    const autoOn = localStorage.getItem(_keyAutoImp()) === 'true';
+    document.getElementById('toggle-impressao-auto').checked = autoOn;
+    _atualizarStatusAuto(autoOn);
+  })();
+
+  function toggleAutoImpressao(chk) {
+    if (chk.checked) {
+      // Ativar — livre, sem senha
+      salvarAutoImpressao(true);
+    } else {
+      // Desativar — exige credencial de admin
+      document.getElementById('inp-nome-admin').value = '';
+      document.getElementById('inp-senha-auto').value = '';
+      document.getElementById('err-senha-auto').style.display = 'none';
+      new bootstrap.Modal(document.getElementById('modalSenhaAuto')).show();
+      setTimeout(() => document.getElementById('inp-nome-admin').focus(), 400);
+    }
+  }
+
+  async function confirmarSenhaAuto() {
+    const nome  = document.getElementById('inp-nome-admin').value.trim();
+    const senha = document.getElementById('inp-senha-auto').value;
+    const errEl = document.getElementById('err-senha-auto');
+    if (!nome || !senha) { errEl.textContent = 'Preencha o e-mail e a senha.'; errEl.style.display = ''; return; }
+    const btn = document.getElementById('btn-confirmar-senha-auto');
+    btnLoading(btn, true);
+    try {
+      const admin = await api.vendedores.login(nome, senha);
+      if (!admin.is_admin) {
+        errEl.textContent = `"${nome}" não é administrador.`;
+        errEl.style.display = '';
+        return;
+      }
+      bootstrap.Modal.getInstance(document.getElementById('modalSenhaAuto')).hide();
+      salvarAutoImpressao(false);
+      document.getElementById('toggle-impressao-auto').checked = false;
+    } catch {
+      errEl.textContent = 'Nome ou senha incorretos.';
+      errEl.style.display = '';
+      document.getElementById('inp-senha-auto').value = '';
+      document.getElementById('inp-senha-auto').focus();
+    } finally {
+      btnLoading(btn, false);
+    }
+  }
+
+  function cancelarSenhaAuto() {
+    bootstrap.Modal.getInstance(document.getElementById('modalSenhaAuto')).hide();
+    document.getElementById('toggle-impressao-auto').checked = true; // reverte
+  }
+
+  function salvarAutoImpressao(ativo) {
+    localStorage.setItem(_keyAutoImp(), ativo ? 'true' : 'false');
+    _atualizarStatusAuto(ativo);
+  }
+  function _atualizarStatusAuto(ativo) {
+    const el = document.getElementById('status-auto');
+    el.innerHTML = ativo
+      ? '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Ativada — nota impressa automaticamente ao finalizar</span>'
+      : '<span class="text-muted"><i class="bi bi-x-circle me-1"></i>Desativada — impressão manual pelo botão no comprovante</span>';
+  }
+
+  function salvarConfiguracoes() {
+    if (!tipoSelecionado) { showToast('Selecione o tipo de impressora', 'warning'); return; }
+    if (tipoSelecionado === 'wifi') {
+      const ip = document.getElementById('ip-impressora').value.trim();
+      if (!ip) { showToast('Informe o IP da impressora', 'warning'); return; }
+      localStorage.setItem('impressora_ip',    ip);
+      localStorage.setItem('impressora_porta', document.getElementById('porta-impressora').value || '9100');
+    }
+    localStorage.setItem('impressora_tipo', tipoSelecionado);
+    showToast('Configurações salvas!', 'success');
+  }
+
+  async function testarConexao() {
+    const ip    = document.getElementById('ip-impressora').value.trim();
+    const porta = parseInt(document.getElementById('porta-impressora').value) || 9100;
+    const statusEl = document.getElementById('status-teste');
+    const btn = document.getElementById('btn-testar');
+    if (!ip) { statusEl.innerHTML = '<span class="text-danger">Informe o IP da impressora.</span>'; return; }
+    btnLoading(btn, true);
+    statusEl.innerHTML = '<span class="text-muted">Conectando...</span>';
+    try {
+      await TcpPrint.testarConexao(ip, porta);
+      statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Impressora encontrada!</span>';
+    } catch(e) {
+      statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>${e.message}</span>`;
+    } finally {
+      btnLoading(btn, false);
+    }
+  }
+
+  async function imprimirTeste() {
+    var _ipEl = document.getElementById('ip-impressora');
+    const ip    = localStorage.getItem('impressora_ip')    || (_ipEl ? _ipEl.value.trim() : '');
+    const porta = parseInt(localStorage.getItem('impressora_porta') || '9100');
+    const tipo  = tipoSelecionado;
+    const statusEl = document.getElementById('status-impressao-teste');
+    const btn = document.getElementById('btn-impr-teste');
+
+    const agora = new Date().toLocaleString('pt-BR');
+    const texto =
+`================================
+     PAGINA DE TESTE
+================================
+Data: ${agora}
+================================
+Impressora configurada com sucesso
+no sistema PDV.
+
+Bematech MP-4200 TH
+Porta: ${porta}
+================================
+       Obrigado!
+================================`;
+
+    if (tipo === 'wifi') {
+      if (!ip) { showToast('Salve o IP da impressora antes de testar', 'warning'); return; }
+      btnLoading(btn, true);
+      statusEl.innerHTML = '<span class="text-muted">Enviando...</span>';
+      try {
+        await TcpPrint.imprimir(texto);
+        statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Teste enviado!</span>';
+      } catch(e) {
+        statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>${e.message}</span>`;
+      } finally {
+        btnLoading(btn, false);
+      }
+    } else {
+      // Sistema: imprime via window.print()
+      const pa = document.createElement('div');
+      pa.style.cssText = 'position:fixed;top:0;left:0;width:100%;z-index:99999;background:#fff;padding:0';
+      pa.innerHTML = `<pre style="font-family:monospace;font-size:12px;white-space:pre-wrap;padding:0;margin:0">${texto}</pre>`;
+      document.body.appendChild(pa);
+      window.print();
+      setTimeout(() => pa.remove(), 1500);
+    }
+  }
+
+
+</script>
+</body>
+</html>

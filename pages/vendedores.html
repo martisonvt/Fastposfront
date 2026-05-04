@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vendedores - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    @media (max-width: 767px) {
+      .col-mobile-hide { display: none !important; }
+      .perm-badges-cell { display: none !important; }
+    }
+    /* Modal de confirmação de comissão fica acima do modal de comissões */
+    #modalPagarComissao { z-index: 1065; }
+    /* Modal permissões compacto */
+    #modalPermissoes .modal-body { padding: .75rem 1rem; }
+    #modalPermissoes .border.rounded.bg-light { padding: .6rem .8rem !important; }
+    #modalPermissoes .form-check { padding-top: .1rem; padding-bottom: .1rem; }
+    #modalPermissoes .form-check-label { font-size: .83rem; }
+    #perm-modulos .form-check { padding: .3rem .5rem; }
+    #perm-modulos .form-check-label { font-size: .78rem; }
+    #perm-nome-display { font-size: .95rem; margin-bottom: .5rem !important; }
+  </style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-person-badge me-2"></i>Vendedores</h2>
+      <p>Cadastro de usuários, senhas e permissões de acesso</p>
+    </div>
+    <button class="btn btn-pdv" onclick="abrirModal()"><i class="bi bi-plus-lg me-1"></i>Novo Vendedor</button>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th class="col-mobile-hide">CPF</th>
+            <th class="col-mobile-hide">Telefone</th>
+            <th>Perfil</th>
+            <th class="perm-badges-cell">Permissões</th>
+            <th class="col-mobile-hide">Status</th>
+            <th class="text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-vendedores">
+          <tr><td colspan="7" class="text-center py-3 text-muted">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cadastro/Edição -->
+<div class="modal fade" id="modal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-titulo">Novo Vendedor</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="v-id">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Nome *</label>
+            <input type="text" id="v-nome" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">CPF</label>
+            <input type="text" id="v-cpf" class="form-control" maxlength="14" placeholder="000.000.000-00">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Telefone</label>
+            <input type="text" id="v-tel" class="form-control" placeholder="(00) 00000-0000">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">E-mail *</label>
+            <input type="email" id="v-email" class="form-control" placeholder="email@exemplo.com">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Senha <span id="senha-hint" class="text-muted small">(obrigatória para novo)</span></label>
+            <input type="password" id="v-senha" class="form-control" placeholder="Deixe em branco para manter">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Comissão (%)</label>
+            <input type="number" id="v-comissao" class="form-control" min="0" max="100" step="0.1" placeholder="0">
+            <div class="form-text">0 = sem comissão</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-pdv" onclick="salvar()"><i class="bi bi-check-lg me-1"></i>Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Permissões -->
+<div class="modal fade" id="modalPermissoes" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+    <div class="modal-content">
+      <div class="modal-header bg-warning bg-opacity-10">
+        <h5 class="modal-title"><i class="bi bi-shield-lock me-2"></i>Permissões de Acesso</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="perm-id">
+        <div id="perm-nome-display" class="fw-bold mb-3 fs-6"></div>
+
+        <!-- Perfil -->
+        <div class="mb-3 p-3 border rounded bg-light">
+          <label class="form-label fw-semibold mb-2"><i class="bi bi-person-gear me-1"></i>Perfil do usuário</label>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="perm-perfil" id="perm-operador" value="operador" checked>
+            <label class="form-check-label" for="perm-operador">
+              <strong>Operador</strong> — acesso apenas aos módulos selecionados abaixo
+            </label>
+          </div>
+          <div class="form-check mt-1">
+            <input class="form-check-input" type="radio" name="perm-perfil" id="perm-admin" value="admin">
+            <label class="form-check-label" for="perm-admin">
+              <strong>Administrador</strong> <span class="badge bg-warning text-dark ms-1">ADM</span>
+              — acesso total ao sistema e ao gerenciamento de usuários
+            </label>
+          </div>
+        </div>
+
+        <!-- Módulos (só visíveis para Operador) -->
+        <div id="perm-modulos-wrapper">
+          <label class="form-label fw-semibold mb-2"><i class="bi bi-grid me-1"></i>Módulos permitidos</label>
+          <div class="row g-2" id="perm-modulos">
+            <!-- preenchido por JS -->
+          </div>
+          <div class="mt-2">
+            <a href="#" class="small text-muted" onclick="selecionarTodos(true)">Selecionar todos</a>
+            &nbsp;|&nbsp;
+            <a href="#" class="small text-muted" onclick="selecionarTodos(false)">Desmarcar todos</a>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-warning" onclick="salvarPermissoes()">
+          <i class="bi bi-shield-check me-1"></i>Salvar Permissões
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmar Pagamento de Comissão -->
+<div class="modal fade" id="modalPagarComissao" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title fw-bold"><i class="bi bi-cash-coin me-2"></i>Pagar Comissão</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-1 small">Pagar <strong id="pagar-com-qtd"></strong> comissão(ões) de:</p>
+        <p class="fw-bold mb-1" id="pagar-com-nome-conf"></p>
+        <p class="fw-bold fs-5 text-center text-warning mb-3" id="pagar-com-total"></p>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="pagar-com-sangria" checked
+            onchange="document.getElementById('pagar-com-forma-wrap').style.display=this.checked?'':'none'">
+          <label class="form-check-label small" for="pagar-com-sangria">
+            Registrar saída no caixa (sangria)
+          </label>
+        </div>
+        <div id="pagar-com-forma-wrap">
+          <label class="form-label small mb-1">Forma de pagamento</label>
+          <select id="pagar-com-forma" class="form-select form-select-sm">
+            <option value="dinheiro">Dinheiro</option>
+            <option value="pix">PIX</option>
+            <option value="transferencia">Transferência</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-warning btn-sm" onclick="confirmarPagamentoComissao()">
+          <i class="bi bi-check-lg me-1"></i>Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Comissões -->
+<div class="modal fade" id="modalComissoes" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-sm-down">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-cash-coin me-2"></i>Comissões — <span id="com-nome"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="com-vendedor-id">
+        <!-- KPIs -->
+        <div class="row g-2 mb-3" id="com-kpis"></div>
+        <!-- Filtro + botão pagar -->
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <select id="com-filtro-status" class="form-select form-select-sm" style="width:auto" onchange="renderComissoes()">
+            <option value="">Todas</option>
+            <option value="pendente">Pendentes</option>
+            <option value="pago">Pagas</option>
+          </select>
+          <button class="btn btn-sm btn-warning ms-auto" id="btn-pagar-lote-modal" onclick="pagarLoteModal()" style="display:none">
+            <i class="bi bi-cash-coin me-1"></i>Pagar Tudo Pendente
+          </button>
+        </div>
+        <!-- Tabela -->
+        <div style="overflow-x:auto">
+          <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Data</th>
+                <th>Venda</th>
+                <th class="text-end">Valor Venda</th>
+                <th class="text-end">%</th>
+                <th class="text-end">Comissão</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="tb-com-detalhe">
+              <tr><td colspan="6" class="text-center py-3 text-muted">Carregando...</td></tr>
+            </tbody>
+            <tfoot id="tfoot-com-detalhe" class="table-light fw-bold"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=2"></script><script src="/js/utils.js?v=2"></script><script src="/js/components.js?v=2"></script>
+<script>
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/vendedores.html');
+  if (!requirePermissao('vendedores')) throw '';
+  const modal = new bootstrap.Modal(document.getElementById('modal'));
+  const modalPerm = new bootstrap.Modal(document.getElementById('modalPermissoes'));
+  let editandoId = null;
+
+  // Ícones dos módulos
+  const MODULOS_ICONE = {
+    dashboard:        'bi-speedometer2',
+    historico_vendas: 'bi-receipt',
+    caixa:            'bi-cart3',
+    produtos:         'bi-box-seam',
+    categorias:       'bi-tags',
+    clientes:         'bi-people',
+    fiado:            'bi-wallet2',
+    estoque:          'bi-archive',
+    relatorios:       'bi-bar-chart-line',
+    impressora:       'bi-printer',
+    gestao_caixa:     'bi-cash-coin',
+    vendedores:       'bi-person-badge',
+    configuracoes:    'bi-gear-fill',
+    loja_ver:         'bi-shop',
+    loja_config:      'bi-sliders',
+    mesas:            'bi-grid-3x3',
+  };
+
+  async function carregar() {
+    const list = await api.vendedores.listar();
+    const tb = document.getElementById('tabela-vendedores');
+    tb.innerHTML = list.length === 0
+      ? '<tr><td colspan="7" class="text-center py-3 text-muted">Nenhum vendedor</td></tr>'
+      : list.map(v => {
+          const perms = (() => { try { return JSON.parse(v.permissoes || '[]'); } catch { return []; } })();
+          const perfilBadge = v.is_admin
+            ? `<span class="badge bg-warning text-dark"><i class="bi bi-shield-fill-check me-1"></i>Administrador</span>`
+            : `<span class="badge bg-secondary"><i class="bi bi-person me-1"></i>Operador</span>`;
+
+          const permBadges = v.is_admin
+            ? `<span class="text-muted small"><i class="bi bi-infinity me-1"></i>Acesso total</span>`
+            : (perms.length === 0
+                ? `<span class="text-danger small">Sem acesso</span>`
+                : perms.map(p =>
+                    `<span class="badge bg-light text-dark border me-1" style="font-size:.7rem">
+                      <i class="bi ${MODULOS_ICONE[p] || 'bi-grid'} me-1"></i>${MODULOS_LABEL[p] || p}
+                    </span>`
+                  ).join('')
+              );
+
+          // Não-admins não podem tocar em usuários Admin
+          const euSouAdmin = isAdmin();
+          const alvoEhAdmin = !!v.is_admin;
+          const bloqueado = alvoEhAdmin && !euSouAdmin;
+          const bloqTitle = bloqueado ? ' title="Somente Administradores podem gerenciar outros Admins"' : '';
+          const bloqAttr  = bloqueado ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+
+          const btnPerm = `<button class="btn btn-sm btn-outline-warning me-1"${bloqTitle}${bloqAttr}
+            ${bloqueado ? '' : `onclick='abrirPermissoes(${JSON.stringify(v)})'`}><i class="bi bi-shield-lock"></i></button>`;
+
+          const comissaoBadge = (v.comissao_pct > 0)
+            ? `<span class="badge bg-success ms-1" style="font-size:.65rem">${v.comissao_pct}%</span>` : '';
+
+          return `<tr>
+            <td class="fw-semibold">${v.nome}${comissaoBadge}</td>
+            <td class="col-mobile-hide">${v.cpf || '-'}</td>
+            <td class="col-mobile-hide">${v.telefone || '-'}</td>
+            <td>${perfilBadge}</td>
+            <td class="perm-badges-cell" style="max-width:260px">${permBadges}</td>
+            <td class="col-mobile-hide"><span class="badge bg-${v.ativo ? 'success' : 'secondary'}">${v.ativo ? 'Ativo' : 'Inativo'}</span></td>
+            <td class="text-center">
+              ${btnPerm}
+              <button class="btn btn-sm btn-outline-success me-1" title="Comissões"
+                onclick='abrirComissoes(${JSON.stringify(v)})'><i class="bi bi-cash-coin"></i></button>
+              <button class="btn btn-sm btn-outline-primary me-1"${bloqTitle}${bloqAttr}
+                ${bloqueado ? '' : `onclick='editar(${JSON.stringify(v)})'`}><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger"${bloqTitle}${bloqAttr}
+                ${bloqueado ? '' : `onclick="deletar(${v.id})"`}><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>`;
+        }).join('');
+  }
+
+  function abrirModal() {
+    editandoId = null;
+    document.getElementById('modal-titulo').textContent = 'Novo Vendedor';
+    ['v-id','v-nome','v-cpf','v-tel','v-email','v-senha'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('v-comissao').value = '0';
+    modal.show();
+  }
+
+  function editar(v) {
+    editandoId = v.id;
+    document.getElementById('modal-titulo').textContent = 'Editar Vendedor';
+    document.getElementById('v-nome').value = v.nome;
+    document.getElementById('v-cpf').value = v.cpf || '';
+    document.getElementById('v-tel').value = v.telefone || '';
+    document.getElementById('v-email').value = v.email || '';
+    document.getElementById('v-senha').value = '';
+    document.getElementById('v-comissao').value = v.comissao_pct != null ? v.comissao_pct : 0;
+    modal.show();
+  }
+
+  async function salvar() {
+    const nome  = document.getElementById('v-nome').value.trim();
+    const email = document.getElementById('v-email').value.trim();
+    const senha = document.getElementById('v-senha').value;
+    if (!nome)  { showToast('Nome é obrigatório', 'error'); return; }
+    if (!email) { showToast('E-mail é obrigatório', 'error'); return; }
+    if (!editandoId && !senha) { showToast('Senha é obrigatória para novo vendedor', 'error'); return; }
+    const data = {
+      nome,
+      cpf: document.getElementById('v-cpf').value.trim() || null,
+      telefone: document.getElementById('v-tel').value.trim() || null,
+      email: document.getElementById('v-email').value.trim() || null,
+      comissao_pct: parseFloat(document.getElementById('v-comissao').value) || 0,
+    };
+    if (senha) data.senha = senha;
+    try {
+      if (editandoId) await api.vendedores.atualizar(editandoId, data);
+      else await api.vendedores.criar(data);
+      modal.hide();
+      showToast('Vendedor salvo!');
+      carregar();
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  async function deletar(id) {
+    if (!confirmDialog('Desativar este vendedor?')) return;
+    try { await api.vendedores.deletar(id); showToast('Vendedor desativado'); carregar(); }
+    catch(e) { showToast(e.message, 'error'); }
+  }
+
+  // ── Permissões ──────────────────────────────────────────────────────────────
+  let _permAlvoEhAdmin = false;
+
+  function abrirPermissoes(v) {
+    if (v.is_admin && !isAdmin()) {
+      showToast('Somente Administradores podem gerenciar outros Admins', 'error');
+      return;
+    }
+    _permAlvoEhAdmin = !!v.is_admin;
+    document.getElementById('perm-id').value = v.id;
+    document.getElementById('perm-nome-display').innerHTML =
+      `<i class="bi bi-person-circle me-1"></i>${v.nome}`;
+
+    const perfs = document.querySelectorAll('input[name="perm-perfil"]');
+    perfs.forEach(r => r.value === (v.is_admin ? 'admin' : 'operador') ? r.checked = true : null);
+
+    // Render checkboxes dos módulos
+    let perms = [];
+    try { perms = JSON.parse(v.permissoes || '[]'); } catch {}
+
+    document.getElementById('perm-modulos').innerHTML = TODOS_MODULOS.map(mod => `
+      <div class="col-4">
+        <div class="form-check border rounded p-2">
+          <input class="form-check-input" type="checkbox" id="perm-mod-${mod}" value="${mod}"
+            ${perms.includes(mod) ? 'checked' : ''}>
+          <label class="form-check-label" for="perm-mod-${mod}">
+            <i class="bi ${MODULOS_ICONE[mod] || 'bi-grid'} me-1"></i>${MODULOS_LABEL[mod]}
+          </label>
+        </div>
+      </div>
+    `).join('');
+
+    // Esconde opção "Administrador" para quem não é admin
+    const linhaAdmin = document.getElementById('perm-admin').closest('.form-check');
+    if (linhaAdmin) linhaAdmin.style.display = isAdmin() ? '' : 'none';
+
+    // Atualiza visibilidade dos módulos conforme perfil
+    atualizarVisibilidadeModulos();
+    document.querySelectorAll('input[name="perm-perfil"]').forEach(r =>
+      r.addEventListener('change', atualizarVisibilidadeModulos)
+    );
+
+    modalPerm.show();
+  }
+
+  function atualizarVisibilidadeModulos() {
+    const admin = (document.querySelector('input[name="perm-perfil"]:checked') || {}).value === 'admin';
+    document.getElementById('perm-modulos-wrapper').style.opacity = admin ? '0.4' : '1';
+    document.getElementById('perm-modulos-wrapper').style.pointerEvents = admin ? 'none' : '';
+    if (admin) {
+      document.querySelectorAll('#perm-modulos input[type=checkbox]').forEach(c => c.checked = true);
+    }
+  }
+
+  function selecionarTodos(marcar) {
+    document.querySelectorAll('#perm-modulos input[type=checkbox]').forEach(c => c.checked = marcar);
+  }
+
+  async function salvarPermissoes() {
+    const id = document.getElementById('perm-id').value;
+    const admin = (document.querySelector('input[name="perm-perfil"]:checked') || {}).value === 'admin';
+
+    // Bloqueios de segurança para não-admins
+    if (_permAlvoEhAdmin && !isAdmin()) {
+      showToast('Somente Administradores podem alterar permissões de outros Admins', 'error');
+      return;
+    }
+    if (admin && !isAdmin()) {
+      showToast('Somente Administradores podem promover usuários a Administrador', 'error');
+      return;
+    }
+
+    const perms = admin
+      ? TODOS_MODULOS
+      : Array.from(document.querySelectorAll('#perm-modulos input:checked')).map(c => c.value);
+
+    try {
+      await api.vendedores.atualizarPermissoes(id, { is_admin: admin, permissoes: perms });
+      modalPerm.hide();
+      showToast('Permissões salvas!');
+      carregar();
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  // ── Comissões ────────────────────────────────────────────────────────────────
+  const modalCom = new bootstrap.Modal(document.getElementById('modalComissoes'));
+  let _comissoesList = [];
+
+  async function abrirComissoes(v) {
+    document.getElementById('com-nome').textContent = v.nome;
+    document.getElementById('com-vendedor-id').value = v.id;
+    document.getElementById('com-filtro-status').value = '';
+    document.getElementById('tb-com-detalhe').innerHTML =
+      '<tr><td colspan="6" class="text-center py-3 text-muted">Carregando...</td></tr>';
+    document.getElementById('tfoot-com-detalhe').innerHTML = '';
+    document.getElementById('com-kpis').innerHTML = '';
+    document.getElementById('btn-pagar-lote-modal').style.display = 'none';
+    modalCom.show();
+
+    try {
+      _comissoesList = await api.comissoes.listar({ vendedor_id: v.id });
+      renderComissoes();
+    } catch(e) {
+      document.getElementById('tb-com-detalhe').innerHTML =
+        `<tr><td colspan="6" class="text-center py-3 text-danger">${e.message}</td></tr>`;
+    }
+  }
+
+  function renderComissoes() {
+    const status = document.getElementById('com-filtro-status').value;
+    const lista  = status ? _comissoesList.filter(c => c.status === status) : _comissoesList;
+
+    // KPIs
+    const totPend = _comissoesList.filter(c => c.status === 'pendente').reduce((s,c) => s + c.valor_comissao, 0);
+    const totPago = _comissoesList.filter(c => c.status === 'pago').reduce((s,c) => s + c.valor_comissao, 0);
+    const totGeral = totPend + totPago;
+    document.getElementById('com-kpis').innerHTML = `
+      <div class="col-4">
+        <div class="p-2 rounded text-center" style="background:#fff3cd">
+          <div style="font-size:.72rem;color:#856404">Total Geral</div>
+          <div class="fw-bold">${fmtMoeda(totGeral)}</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="p-2 rounded text-center" style="background:#fff3cd">
+          <div style="font-size:.72rem;color:#856404">A Pagar</div>
+          <div class="fw-bold text-warning">${fmtMoeda(totPend)}</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="p-2 rounded text-center" style="background:#d1e7dd">
+          <div style="font-size:.72rem;color:#0f5132">Pago</div>
+          <div class="fw-bold text-success">${fmtMoeda(totPago)}</div>
+        </div>
+      </div>`;
+
+    // Botão pagar (só admin, só se tem pendente)
+    const btnPagar = document.getElementById('btn-pagar-lote-modal');
+    btnPagar.style.display = (isAdmin() && totPend > 0) ? '' : 'none';
+
+    // Tabela
+    const tb = document.getElementById('tb-com-detalhe');
+    const tf = document.getElementById('tfoot-com-detalhe');
+    if (!lista.length) {
+      tb.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Nenhuma comissão encontrada</td></tr>';
+      tf.innerHTML = '';
+      return;
+    }
+    tb.innerHTML = lista.map(c => `<tr>
+      <td>${new Date(c.criado_em).toLocaleDateString('pt-BR')}</td>
+      <td class="text-muted">#${c.venda_id}</td>
+      <td class="text-end">${fmtMoeda(c.valor_venda)}</td>
+      <td class="text-end">${c.comissao_pct.toFixed(1)}%</td>
+      <td class="text-end fw-semibold">${fmtMoeda(c.valor_comissao)}</td>
+      <td><span class="badge ${c.status === 'pago' ? 'bg-success' : 'bg-warning text-dark'}">${c.status === 'pago' ? 'Pago' : 'Pendente'}</span></td>
+    </tr>`).join('');
+
+    const totFilt = lista.reduce((s,c) => s + c.valor_comissao, 0);
+    tf.innerHTML = `<tr>
+      <td colspan="4">Total (${lista.length} registro${lista.length !== 1 ? 's' : ''})</td>
+      <td class="text-end">${fmtMoeda(totFilt)}</td>
+      <td></td>
+    </tr>`;
+  }
+
+  const modalPagarCom = new bootstrap.Modal(document.getElementById('modalPagarComissao'));
+
+  // Garante que o backdrop do modal de confirmação fique acima do modal de comissões
+  document.getElementById('modalPagarComissao').addEventListener('show.bs.modal', function() {
+    setTimeout(() => {
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      if (backdrops.length >= 2) {
+        backdrops[backdrops.length - 1].style.zIndex = '1062';
+      }
+    }, 10);
+  });
+
+  function pagarLoteModal() {
+    const nome     = document.getElementById('com-nome').textContent;
+    const pendentes = _comissoesList.filter(c => c.status === 'pendente');
+    const total    = pendentes.reduce((s, c) => s + c.valor_comissao, 0);
+    document.getElementById('pagar-com-qtd').textContent       = pendentes.length;
+    document.getElementById('pagar-com-nome-conf').textContent = nome;
+    document.getElementById('pagar-com-total').textContent     = fmtMoeda(total);
+    // reset checkbox/forma
+    document.getElementById('pagar-com-sangria').checked       = true;
+    document.getElementById('pagar-com-forma-wrap').style.display = '';
+    document.getElementById('pagar-com-forma').value           = 'dinheiro';
+    modalPagarCom.show();
+  }
+
+  async function confirmarPagamentoComissao() {
+    const id              = document.getElementById('com-vendedor-id').value;
+    const nome            = document.getElementById('com-nome').textContent;
+    const registrarSangria = document.getElementById('pagar-com-sangria').checked;
+    const forma           = document.getElementById('pagar-com-forma').value;
+    const pendentes       = _comissoesList.filter(c => c.status === 'pendente');
+    const totalPendente   = pendentes.reduce((s, c) => s + c.valor_comissao, 0);
+
+    try {
+      const res = await api.comissoes.pagarLote(id);
+
+      if (registrarSangria) {
+        try {
+          const v = getVendedor();
+          const sessao = await api.caixa.status(v.id);
+          await api.caixa.movimento({
+            sessao_id:       sessao.id,
+            tipo:            'sangria',
+            forma_pagamento: forma,
+            valor:           totalPendente,
+            motivo:          `Comissão — ${nome}`,
+            vendedor_id:     v.id,
+          });
+          showToast(`${res.pago} comissão(ões) pagas e sangria registrada no caixa!`);
+        } catch(eCaixa) {
+          const msg = eCaixa.message.toLowerCase().includes('fechado')
+            ? 'Caixa fechado — sangria não registrada.'
+            : `Sangria não registrada: ${eCaixa.message}`;
+          showToast(`${res.pago} comissão(ões) pagas. ⚠️ ${msg}`, 'warning');
+        }
+      } else {
+        showToast(`${res.pago} comissão(ões) marcadas como pagas!`);
+      }
+
+      modalPagarCom.hide();
+      _comissoesList = await api.comissoes.listar({ vendedor_id: id });
+      renderComissoes();
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  carregar();
+</script>
+</body>
+</html>

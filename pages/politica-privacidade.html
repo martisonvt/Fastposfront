@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidade — FastPOS</title>
+  <link rel="icon" href="/images/logo-fastpos.png">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #1a2535;
+      line-height: 1.7;
+    }
+
+    /* ── Header ── */
+    .pp-header {
+      background: #0f1f30;
+      padding: 1.2rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .pp-header img { height: 32px; width: auto; }
+    .pp-header a {
+      color: #2db88a;
+      text-decoration: none;
+      font-size: .88rem;
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      transition: opacity .2s;
+    }
+    .pp-header a:hover { opacity: .8; }
+
+    /* ── Hero da página ── */
+    .pp-hero {
+      background: #0f1f30;
+      color: #fff;
+      text-align: center;
+      padding: 3rem 1.5rem 4rem;
+      border-bottom: 3px solid #2db88a;
+    }
+    .pp-hero .badge {
+      display: inline-block;
+      background: rgba(45,184,138,.15);
+      border: 1px solid rgba(45,184,138,.35);
+      color: #2db88a;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .3rem .8rem;
+      border-radius: 20px;
+      margin-bottom: 1rem;
+    }
+    .pp-hero h1 {
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+      font-weight: 900;
+      margin-bottom: .6rem;
+    }
+    .pp-hero p {
+      color: rgba(255,255,255,.6);
+      font-size: .92rem;
+    }
+
+    /* ── Conteúdo ── */
+    .pp-wrap {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 5rem;
+    }
+
+    .pp-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 2rem 2.2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,.06);
+      border-left: 4px solid #2db88a;
+    }
+
+    .pp-card h2 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #0f1f30;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+    .pp-card h2 .num {
+      background: #2db88a;
+      color: #fff;
+      font-size: .75rem;
+      font-weight: 800;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .pp-card p { color: #3a4a5c; margin-bottom: .8rem; font-size: .93rem; }
+    .pp-card p:last-child { margin-bottom: 0; }
+
+    .pp-card ul {
+      list-style: none;
+      padding: 0;
+      margin: .5rem 0 .8rem;
+    }
+    .pp-card ul li {
+      color: #3a4a5c;
+      font-size: .93rem;
+      padding: .35rem 0 .35rem 1.4rem;
+      position: relative;
+      border-bottom: 1px solid #f0f2f5;
+    }
+    .pp-card ul li:last-child { border-bottom: none; }
+    .pp-card ul li::before {
+      content: '✓';
+      position: absolute; left: 0;
+      color: #2db88a;
+      font-weight: 700;
+    }
+
+    /* Card de destaque (direitos do usuário) */
+    .pp-card.highlight {
+      background: #f0faf6;
+      border-left-color: #17a97a;
+    }
+
+    /* Card de contato */
+    .pp-card.contact {
+      background: #0f1f30;
+      border-left-color: #2db88a;
+      color: #fff;
+    }
+    .pp-card.contact h2 { color: #fff; }
+    .pp-card.contact p { color: rgba(255,255,255,.75); }
+    .pp-card.contact a {
+      color: #2db88a;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .pp-card.contact a:hover { text-decoration: underline; }
+
+    /* Tag de data */
+    .pp-updated {
+      text-align: center;
+      color: #8a99aa;
+      font-size: .82rem;
+      margin-bottom: 2rem;
+    }
+
+    /* ── Footer ── */
+    .pp-footer {
+      background: #0f1f30;
+      color: rgba(255,255,255,.45);
+      text-align: center;
+      padding: 1.5rem;
+      font-size: .82rem;
+    }
+    .pp-footer a {
+      color: #2db88a;
+      text-decoration: none;
+      margin: 0 .5rem;
+    }
+    .pp-footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      .pp-card { padding: 1.4rem 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="pp-header">
+  <a href="/">
+    <img src="/images/logo-fastpos.png" alt="FastPOS">
+  </a>
+  <a href="/">
+    ← Voltar ao site
+  </a>
+</header>
+
+<!-- Hero -->
+<div class="pp-hero">
+  <div class="badge">📄 Documento Legal</div>
+  <h1>Política de Privacidade</h1>
+  <p>Como coletamos, usamos e protegemos suas informações</p>
+</div>
+
+<!-- Conteúdo -->
+<main class="pp-wrap">
+
+  <p class="pp-updated">Última atualização: maio de 2026</p>
+
+  <!-- 1 -->
+  <div class="pp-card">
+    <h2><span class="num">1</span> Quem somos</h2>
+    <p>
+      O <strong>FastPOS</strong> é um sistema de ponto de venda (PDV) online desenvolvido para
+      facilitar a gestão de vendas de pequenos e médios comerciantes.
+      Levamos a privacidade dos nossos usuários a sério e este documento explica,
+      de forma clara, como tratamos seus dados pessoais em conformidade com a
+      <strong>Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)</strong>.
+    </p>
+    <p>
+      Contato do responsável pelo tratamento de dados:
+      <strong>contato@fastpos.com.br</strong>
+    </p>
+  </div>
+
+  <!-- 2 -->
+  <div class="pp-card">
+    <h2><span class="num">2</span> Dados que coletamos</h2>
+    <p>Coletamos somente os dados necessários para o funcionamento do serviço:</p>
+    <ul>
+      <li><strong>Dados de cadastro:</strong> nome, e-mail e senha (armazenada de forma criptografada)</li>
+      <li><strong>Dados da empresa:</strong> nome fantasia, segmento e informações de contato</li>
+      <li><strong>Dados de uso:</strong> produtos, vendas, clientes e movimentações registradas por você</li>
+      <li><strong>Dados técnicos:</strong> endereço IP, tipo de dispositivo e logs de acesso (para segurança)</li>
+      <li><strong>Dados de pagamento:</strong> processados diretamente pelo Mercado Pago — não armazenamos dados de cartão</li>
+    </ul>
+    <p>Não coletamos dados sensíveis (origem racial, religião, saúde, etc.).</p>
+  </div>
+
+  <!-- 3 -->
+  <div class="pp-card">
+    <h2><span class="num">3</span> Como usamos seus dados</h2>
+    <ul>
+      <li>Fornecer e manter o serviço FastPOS funcionando</li>
+      <li>Autenticar seu acesso e garantir a segurança da conta</li>
+      <li>Processar pagamentos de assinatura via Mercado Pago</li>
+      <li>Enviar comunicações importantes sobre o serviço (atualizações, alertas)</li>
+      <li>Melhorar a plataforma com base em padrões de uso anônimos</li>
+      <li>Cumprir obrigações legais quando exigido por lei</li>
+    </ul>
+    <p>Não usamos seus dados para publicidade de terceiros.</p>
+  </div>
+
+  <!-- 4 -->
+  <div class="pp-card">
+    <h2><span class="num">4</span> Compartilhamento de dados</h2>
+    <p>Compartilhamos seus dados somente com:</p>
+    <ul>
+      <li><strong>Mercado Pago:</strong> para processar pagamentos de assinatura</li>
+      <li><strong>Provedores de hospedagem:</strong> servidores onde o sistema roda (infraestrutura segura)</li>
+      <li><strong>Autoridades competentes:</strong> somente quando exigido por lei ou ordem judicial</li>
+    </ul>
+    <p>
+      Nunca vendemos, alugamos ou compartilhamos seus dados com terceiros
+      para fins comerciais ou de marketing.
+    </p>
+  </div>
+
+  <!-- 5 -->
+  <div class="pp-card">
+    <h2><span class="num">5</span> Armazenamento e segurança</h2>
+    <p>
+      Seus dados são armazenados em servidores seguros localizados no Brasil.
+      Adotamos as seguintes medidas de segurança:
+    </p>
+    <ul>
+      <li>Comunicação criptografada via HTTPS/TLS</li>
+      <li>Senhas armazenadas com hash (bcrypt)</li>
+      <li>Acesso restrito por autenticação com token JWT</li>
+      <li>Backups regulares dos dados</li>
+      <li>Isolamento de dados por empresa (multi-tenant)</li>
+    </ul>
+  </div>
+
+  <!-- 6 -->
+  <div class="pp-card">
+    <h2><span class="num">6</span> Cookies</h2>
+    <p>
+      Utilizamos cookies essenciais para manter sua sessão ativa e garantir o funcionamento do sistema.
+      Não utilizamos cookies de rastreamento ou publicidade de terceiros.
+    </p>
+    <ul>
+      <li><strong>Cookies de sessão:</strong> mantêm você logado durante o uso</li>
+      <li><strong>Armazenamento local:</strong> preferências e cache offline do PDV</li>
+    </ul>
+  </div>
+
+  <!-- 7 -->
+  <div class="pp-card highlight">
+    <h2><span class="num">7</span> Seus direitos (LGPD)</h2>
+    <p>Você tem os seguintes direitos sobre seus dados pessoais:</p>
+    <ul>
+      <li>Confirmar se tratamos dados seus e acessá-los</li>
+      <li>Corrigir dados incompletos, inexatos ou desatualizados</li>
+      <li>Solicitar a anonimização, bloqueio ou eliminação de dados desnecessários</li>
+      <li>Solicitar a portabilidade dos dados para outro serviço</li>
+      <li>Revogar o consentimento a qualquer momento</li>
+      <li>Solicitar a exclusão total da sua conta e dados</li>
+    </ul>
+    <p>
+      Para exercer qualquer um desses direitos, entre em contato pelo e-mail
+      <strong>contato@fastpos.com.br</strong>. Respondemos em até 15 dias úteis.
+    </p>
+  </div>
+
+  <!-- 8 -->
+  <div class="pp-card">
+    <h2><span class="num">8</span> Retenção de dados</h2>
+    <p>
+      Mantemos seus dados enquanto sua conta estiver ativa. Após o cancelamento,
+      os dados são retidos por até <strong>90 dias</strong> para fins de backup e,
+      em seguida, excluídos permanentemente — salvo obrigação legal que exija
+      retenção por período maior.
+    </p>
+  </div>
+
+  <!-- 9 -->
+  <div class="pp-card">
+    <h2><span class="num">9</span> Alterações nesta política</h2>
+    <p>
+      Podemos atualizar esta política periodicamente. Quando isso ocorrer,
+      notificaremos você por e-mail ou por aviso na plataforma.
+      A data da última atualização sempre estará indicada no topo desta página.
+    </p>
+    <p>
+      O uso continuado do FastPOS após as alterações implica na aceitação
+      da política revisada.
+    </p>
+  </div>
+
+  <!-- 10 – Contato -->
+  <div class="pp-card contact">
+    <h2><span class="num">10</span> Fale conosco</h2>
+    <p>
+      Dúvidas sobre privacidade, solicitações de acesso ou exclusão de dados?
+      Fale com nossa equipe:
+    </p>
+    <p style="margin-top:.8rem;">
+      📧 <a href="mailto:contato@fastpos.com.br">contato@fastpos.com.br</a>
+    </p>
+    <p style="margin-top:.4rem;font-size:.82rem;color:rgba(255,255,255,.45);">
+      Respondemos em até 15 dias úteis.
+    </p>
+  </div>
+
+</main>
+
+<!-- Footer -->
+<footer class="pp-footer">
+  <div>
+    <a href="/">Início</a>
+    <a href="/pages/politica-privacidade.html">Política de Privacidade</a>
+  </div>
+  <div style="margin-top:.6rem;">FastPOS © 2026 — Sistema de PDV Online</div>
+</footer>
+
+</body>
+</html>

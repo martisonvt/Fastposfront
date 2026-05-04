@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Controle de Fiado - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-wallet2 me-2"></i>Controle de Fiado</h2>
+      <p>Saldos devedores, créditos e histórico de pagamentos</p>
+    </div>
+    <a href="/pages/clientes.html" class="btn btn-outline-dark">
+      <i class="bi bi-people me-1"></i>Cadastro de Clientes
+    </a>
+  </div>
+
+  <!-- KPIs -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-3 col-6">
+      <div class="kpi-card kpi-red" style="--kpi-color:#dc3545">
+        <div class="kpi-label">Total em Aberto</div>
+        <div class="kpi-value" id="kpi-aberto" style="font-size:1.1rem">-</div>
+        <i class="bi bi-exclamation-circle kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-label">Total em Crédito</div>
+        <div class="kpi-value" id="kpi-credito" style="font-size:1.1rem">-</div>
+        <i class="bi bi-arrow-down-circle kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card kpi-orange">
+        <div class="kpi-label">Clientes Devedores</div>
+        <div class="kpi-value" id="kpi-devedores">-</div>
+        <i class="bi bi-people kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card kpi-green">
+        <div class="kpi-label">Saldo Líquido</div>
+        <div class="kpi-value" id="kpi-liquido" style="font-size:1.1rem">-</div>
+        <i class="bi bi-balance-scale kpi-icon"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-5">
+          <input type="text" id="busca" class="form-control" placeholder="Buscar cliente por nome, CPF ou telefone..." oninput="buscar()">
+        </div>
+        <div class="col-auto">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary active" id="filtro-todos"     onclick="setFiltro('todos',this)">Todos</button>
+            <button class="btn btn-outline-danger"           id="filtro-devedores" onclick="setFiltro('devedores',this)">Devedores</button>
+            <button class="btn btn-outline-primary"          id="filtro-credito"   onclick="setFiltro('credito',this)">Com Crédito</button>
+            <button class="btn btn-outline-secondary"        id="filtro-quitados"  onclick="setFiltro('quitados',this)">Quitados</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela -->
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Telefone</th>
+            <th>Saldo</th>
+            <th>Limite</th>
+            <th>Última Movimentação</th>
+            <th class="text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-fiado">
+          <tr><td colspan="6" class="text-center py-3 text-muted">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Extrato -->
+<div class="modal fade" id="modalExtrato" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>Extrato — <span id="ext-nome"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <!-- Saldo resumo -->
+        <div class="d-flex justify-content-between align-items-center p-3 border-bottom" id="ext-resumo"></div>
+        <!-- Tabela extrato -->
+        <div id="ext-corpo" style="min-height:200px">
+          <p class="text-muted text-center p-4">Carregando...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        <button class="btn btn-pdv" onclick="abrirPagamento(extratoClienteAtual)">
+          <i class="bi bi-plus-circle me-1"></i>Registrar Pagamento
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Pagamento -->
+<div class="modal fade" id="modalPagamento" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>Registrar Pagamento — <span id="pag-nome"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Saldo atual -->
+        <div class="p-3 rounded mb-3" id="pag-saldo-box" style="background:#fff3cd">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Saldo atual:</span>
+            <span class="fs-4 fw-bold" id="pag-saldo-valor">R$ 0,00</span>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <!-- Adicionar pagamento -->
+          <div class="col-md-6">
+            <div class="card h-100">
+              <div class="card-header fw-semibold py-2">
+                <i class="bi bi-plus-circle me-1"></i>Adicionar Pagamento
+              </div>
+              <div class="card-body">
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold">Forma de Pagamento</label>
+                  <select id="pag-forma" class="form-select form-select-sm">
+                    <option value="dinheiro">💵 Dinheiro</option>
+                    <option value="pix">📱 PIX</option>
+                    <option value="debito">💳 Cartão Débito</option>
+                    <option value="credito">💳 Cartão Crédito</option>
+                    <option value="cheque">📄 Cheque</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Valor (R$)</label>
+                  <div id="pag-calc-display" tabindex="0"
+                    style="background:#f8f9fa;border:2px solid #dee2e6;border-radius:8px;padding:.4rem .75rem;font-size:1.5rem;font-weight:700;text-align:right;cursor:text;color:#1a2540;outline:none;transition:border-color .15s;user-select:none"
+                    onclick="document.getElementById('pag-calc-display').focus()"
+                    onfocus="this.style.borderColor='#0d6efd'"
+                    onblur="this.style.borderColor='#dee2e6'"
+                    onkeydown="_calcKey(event)">R$ 0,00</div>
+                  <input type="hidden" id="pag-valor-inp" value="0">
+                </div>
+                <button class="btn btn-pdv w-100 btn-sm" onclick="adicionarPag()">
+                  <i class="bi bi-plus-lg me-1"></i>Adicionar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lista pagamentos -->
+          <div class="col-md-6">
+            <div class="card h-100">
+              <div class="card-header fw-semibold py-2 d-flex justify-content-between">
+                <span><i class="bi bi-list-check me-1"></i>Pagamentos</span>
+                <span id="pag-badge" class="badge bg-success" style="display:none">0</span>
+              </div>
+              <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                  <tbody id="pag-lista-body">
+                    <tr><td colspan="3" class="text-center text-muted py-3" style="font-size:.82rem">Nenhum pagamento adicionado</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="card-footer p-2" id="pag-totais" style="display:none">
+                <div class="d-flex justify-content-between small mb-1">
+                  <span class="text-muted">Total a pagar:</span>
+                  <span class="fw-bold text-success" id="pag-total">R$ 0,00</span>
+                </div>
+                <div class="d-flex justify-content-between small mb-2">
+                  <span class="text-muted">Saldo restante:</span>
+                  <span class="fw-bold" id="pag-restante">R$ 0,00</span>
+                </div>
+                <button class="btn btn-success w-100 btn-sm fw-semibold" onclick="confirmarPagamento()">
+                  <i class="bi bi-check-circle me-1"></i>Confirmar Pagamento
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=3"></script><script src="/js/utils.js?v=3"></script><script src="/js/components.js?v=3"></script>
+<script>
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/fiado.html');
+  if (!requirePermissao('fiado')) throw '';
+
+  const modalExtrato  = new bootstrap.Modal(document.getElementById('modalExtrato'));
+  const modalPagamento = new bootstrap.Modal(document.getElementById('modalPagamento'));
+
+  let todosClientes    = [];
+  let filtroAtual      = 'todos';
+  let buscaTimer;
+  let extratoClienteAtual = null;  // cliente aberto no extrato
+  let pagClienteId     = null;
+  let pagSaldoAtual    = 0;
+  let _calcDigits      = '0'; // dígitos do estilo calculadora
+
+  function _calcAtualizar() {
+    const centavos = parseInt(_calcDigits || '0', 10);
+    const reais = centavos / 100;
+    document.getElementById('pag-calc-display').textContent =
+      'R$ ' + reais.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    document.getElementById('pag-valor-inp').value = reais;
+  }
+
+  function _calcReset() {
+    _calcDigits = '0';
+    _calcAtualizar();
+    setTimeout(() => document.getElementById('pag-calc-display').focus(), 50);
+  }
+
+  function _calcKey(e) {
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      if (_calcDigits === '0') _calcDigits = e.key;
+      else _calcDigits += e.key;
+      if (_calcDigits.length > 10) _calcDigits = _calcDigits.slice(-10);
+      _calcAtualizar();
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      _calcDigits = _calcDigits.length > 1 ? _calcDigits.slice(0, -1) : '0';
+      _calcAtualizar();
+    } else if (e.key === 'Delete' || e.key === 'Escape') {
+      e.preventDefault();
+      _calcDigits = '0';
+      _calcAtualizar();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      adicionarPag();
+    }
+  }
+  let pagamentos       = [];
+
+  const FORMA_NOME = {
+    dinheiro:'Dinheiro', pix:'PIX', debito:'Cartão Débito',
+    credito:'Cartão Crédito', transferencia:'Transferência', cheque:'Cheque',
+  };
+
+  // ── Carga inicial ────────────────────────────────────────────────────────────
+  async function carregar(busca = '') {
+    const list = await api.clientes.listar(busca);
+    todosClientes = list;
+    calcularKpis(list);
+    renderTabela();
+  }
+
+  function calcularKpis(list) {
+    let totalAberto = 0, totalCredito = 0, devedores = 0;
+    for (const c of list) {
+      if (c.saldo_fiado > 0.005)       { totalAberto  += c.saldo_fiado; devedores++; }
+      else if (c.saldo_fiado < -0.005)  { totalCredito += Math.abs(c.saldo_fiado); }
+    }
+    document.getElementById('kpi-aberto').textContent    = fmtMoeda(totalAberto);
+    document.getElementById('kpi-credito').textContent   = fmtMoeda(totalCredito);
+    document.getElementById('kpi-devedores').textContent = devedores;
+    const liquido = totalAberto - totalCredito;
+    const elLiq = document.getElementById('kpi-liquido');
+    elLiq.textContent = fmtMoeda(Math.abs(liquido));
+    elLiq.style.color = liquido > 0 ? '#dc3545' : '#2d8a4e';
+  }
+
+  function setFiltro(f, btn) {
+    filtroAtual = f;
+    document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTabela();
+  }
+
+  function buscar() {
+    clearTimeout(buscaTimer);
+    buscaTimer = setTimeout(() => carregar(document.getElementById('busca').value), 300);
+  }
+
+  function clientesFiltrados() {
+    return todosClientes.filter(c => {
+      if (filtroAtual === 'devedores') return c.saldo_fiado > 0.005;
+      if (filtroAtual === 'credito')   return c.saldo_fiado < -0.005;
+      if (filtroAtual === 'quitados')  return Math.abs(c.saldo_fiado) <= 0.005;
+      return true; // todos
+    });
+  }
+
+  function renderTabela() {
+    const list = clientesFiltrados();
+    const tb = document.getElementById('tabela-fiado');
+    if (list.length === 0) {
+      tb.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Nenhum cliente encontrado</td></tr>';
+      return;
+    }
+    tb.innerHTML = list.map((c, idx) => {
+      const saldo = c.saldo_fiado;
+      let saldoHtml;
+      if (saldo > 0.005) {
+        saldoHtml = `<span class="badge bg-danger fs-6 px-2">${fmtMoeda(saldo)}</span>`;
+      } else if (saldo < -0.005) {
+        saldoHtml = `<span class="badge bg-primary fs-6 px-2"><i class="bi bi-arrow-down-circle me-1"></i>Crédito ${fmtMoeda(Math.abs(saldo))}</span>`;
+      } else {
+        saldoHtml = `<span class="badge bg-success fs-6 px-2"><i class="bi bi-check-circle me-1"></i>Quitado</span>`;
+      }
+      return `<tr>
+        <td class="fw-semibold">${c.nome}</td>
+        <td>${c.telefone || '-'}</td>
+        <td>${saldoHtml}</td>
+        <td class="text-muted">${c.limite_fiado > 0 ? fmtMoeda(c.limite_fiado) : '-'}</td>
+        <td class="text-muted small">-</td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-outline-secondary me-1" title="Ver Extrato"
+            onclick='abrirExtrato(todosClientes.find(x=>x.id===${c.id}))'><i class="bi bi-clock-history"></i></button>
+          <button class="btn btn-sm btn-pdv" title="Registrar Pagamento"
+            onclick='abrirPagamento(todosClientes.find(x=>x.id===${c.id}))'>
+            <i class="bi bi-plus-circle me-1"></i>Pagar
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Extrato ──────────────────────────────────────────────────────────────────
+  async function abrirExtrato(c) {
+    extratoClienteAtual = c;
+    document.getElementById('ext-nome').textContent = c.nome;
+
+    const saldo = c.saldo_fiado;
+    let saldoHtml;
+    if (saldo > 0.005) {
+      saldoHtml = `<span class="text-muted">Saldo devedor:</span>
+        <span class="fs-5 fw-bold text-danger">${fmtMoeda(saldo)}</span>`;
+    } else if (saldo < -0.005) {
+      saldoHtml = `<span class="text-muted">Crédito disponível:</span>
+        <span class="fs-5 fw-bold text-primary">${fmtMoeda(Math.abs(saldo))}</span>`;
+    } else {
+      saldoHtml = `<span class="text-muted">Situação:</span>
+        <span class="fs-5 fw-bold text-success"><i class="bi bi-check-circle me-1"></i>Quitado</span>`;
+    }
+    document.getElementById('ext-resumo').innerHTML = saldoHtml;
+
+    modalExtrato.show();
+    await carregarExtrato(c.id);
+  }
+
+  async function carregarExtrato(clienteId) {
+    document.getElementById('ext-corpo').innerHTML = '<p class="text-muted text-center p-4">Carregando...</p>';
+    try {
+      const movs = await api.clientes.extratoFiado(clienteId);
+      if (movs.length === 0) {
+        document.getElementById('ext-corpo').innerHTML = '<p class="text-muted text-center p-4">Sem movimentos registrados</p>';
+        return;
+      }
+      document.getElementById('ext-corpo').innerHTML = `
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr><th>Data</th><th>Descrição</th><th class="text-end">Valor</th><th class="text-end">Tipo</th><th></th></tr>
+          </thead>
+          <tbody>
+            ${movs.map(m => `<tr class="${m.cancelado ? 'table-secondary text-decoration-line-through opacity-75' : ''}">
+              <td style="font-size:.82rem;white-space:nowrap">${fmtData(m.criado_em)}</td>
+              <td style="font-size:.82rem">${m.descricao || '-'}${m.cancelado ? ' <span class="badge bg-secondary" style="font-size:.65rem">Cancelado</span>' : ''}</td>
+              <td class="text-end fw-semibold ${m.tipo==='debito'?'text-danger':'text-success'}" style="font-size:.82rem">
+                ${fmtMoeda(m.valor)}
+              </td>
+              <td class="text-end">
+                <span class="badge bg-${m.tipo==='debito'?'danger':'success'} bg-opacity-75" style="font-size:.7rem">
+                  ${m.tipo==='debito'?'Débito':'Crédito'}
+                </span>
+              </td>
+              <td class="text-center">
+                ${m.tipo === 'credito' && !m.cancelado
+                  ? `<button class="btn btn-sm btn-outline-danger py-0 px-1" title="Cancelar pagamento"
+                      onclick="cancelarPagamento(${m.id}, ${m.valor})">
+                      <i class="bi bi-x-circle" style="font-size:.8rem"></i>
+                    </button>`
+                  : ''}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      document.getElementById('ext-corpo').innerHTML = `<p class="text-danger text-center p-4">${e.message}</p>`;
+    }
+  }
+
+  // ── Pagamento ────────────────────────────────────────────────────────────────
+  function abrirPagamento(c) {
+    if (!c) return;
+    pagClienteId  = c.id;
+    pagSaldoAtual = c.saldo_fiado;
+    pagamentos    = [];
+    document.getElementById('pag-nome').textContent = c.nome;
+    document.getElementById('pag-forma').value      = 'dinheiro';
+    _calcDigits = '0'; _calcAtualizar();
+
+    // Cor do box de saldo
+    const box = document.getElementById('pag-saldo-box');
+    const elVal = document.getElementById('pag-saldo-valor');
+    if (pagSaldoAtual > 0.005) {
+      box.style.background = '#ffe0e0';
+      elVal.className = 'fs-4 fw-bold text-danger';
+      elVal.textContent = fmtMoeda(pagSaldoAtual);
+    } else if (pagSaldoAtual < -0.005) {
+      box.style.background = '#e0eaff';
+      elVal.className = 'fs-4 fw-bold text-primary';
+      elVal.textContent = `Crédito: ${fmtMoeda(Math.abs(pagSaldoAtual))}`;
+    } else {
+      box.style.background = '#e0ffe8';
+      elVal.className = 'fs-4 fw-bold text-success';
+      elVal.textContent = 'Quitado ✓';
+    }
+
+    renderPagamentos();
+    // Fecha extrato se estiver aberto e abre pagamento
+    modalExtrato.hide();
+    setTimeout(() => modalPagamento.show(), 300);
+  }
+
+  function adicionarPag() {
+    const forma = document.getElementById('pag-forma').value;
+    const valor = parseFloat(document.getElementById('pag-valor-inp').value);
+    if (!valor || valor <= 0) { showToast('Informe o valor', 'error'); return; }
+    const exist = pagamentos.find(p => p.forma === forma);
+    if (exist) exist.valor = Math.round((exist.valor + valor) * 100) / 100;
+    else pagamentos.push({ forma, valor });
+    _calcReset();
+    renderPagamentos();
+  }
+
+  function removerPag(forma) {
+    pagamentos = pagamentos.filter(p => p.forma !== forma);
+    renderPagamentos();
+  }
+
+  function renderPagamentos() {
+    const tbody  = document.getElementById('pag-lista-body');
+    const badge  = document.getElementById('pag-badge');
+    const totais = document.getElementById('pag-totais');
+    const total  = pagamentos.reduce((s, p) => s + p.valor, 0);
+    const diff   = pagSaldoAtual - total;
+
+    if (pagamentos.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3" style="font-size:.82rem">Nenhum pagamento adicionado</td></tr>`;
+      badge.style.display  = 'none';
+      totais.style.display = 'none';
+      return;
+    }
+
+    badge.textContent   = pagamentos.length;
+    badge.style.display  = '';
+    totais.style.display = '';
+
+    tbody.innerHTML = pagamentos.map(p => `
+      <tr>
+        <td style="font-size:.82rem">${FORMA_NOME[p.forma] || p.forma}</td>
+        <td class="text-end fw-semibold text-success" style="font-size:.82rem">${fmtMoeda(p.valor)}</td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removerPag('${p.forma}')">
+            <i class="bi bi-x" style="font-size:.8rem"></i>
+          </button>
+        </td>
+      </tr>`).join('');
+
+    document.getElementById('pag-total').textContent = fmtMoeda(total);
+    const elRest = document.getElementById('pag-restante');
+    if (diff > 0.005) {
+      elRest.textContent = fmtMoeda(diff);
+      elRest.className   = 'fw-bold text-danger';
+    } else if (diff < -0.005) {
+      elRest.textContent = `Crédito: ${fmtMoeda(Math.abs(diff))}`;
+      elRest.className   = 'fw-bold text-primary';
+    } else {
+      elRest.textContent = 'Quitado ✓';
+      elRest.className   = 'fw-bold text-success';
+    }
+  }
+
+  async function confirmarPagamento() {
+    if (pagamentos.length === 0) { showToast('Adicione pelo menos um pagamento', 'error'); return; }
+    const total = pagamentos.reduce((s, p) => s + p.valor, 0);
+    if (!confirmDialog(`Confirmar ${fmtMoeda(total)} em ${pagamentos.length} forma(s) de pagamento?`)) return;
+    const vendedor = getVendedor();
+    let ultimoCli = null;
+    for (const pag of pagamentos) {
+      try {
+        ultimoCli = await api.clientes.pagarFiado(pagClienteId, {
+          valor: pag.valor,
+          forma_pagamento: pag.forma,
+          descricao: `Pagamento — ${FORMA_NOME[pag.forma] || pag.forma}`,
+          vendedor_id: vendedor.id,
+        });
+      } catch(e) { showToast(`Erro em ${FORMA_NOME[pag.forma]}: ${e.message}`, 'error'); return; }
+    }
+    showToast(`Pagamento de ${fmtMoeda(total)} confirmado!`);
+    modalPagamento.hide();
+    await carregar(document.getElementById('busca').value);
+
+    // Atualiza o objeto no cache e reabre extrato se quiser
+    if (ultimoCli) {
+      const idx = todosClientes.findIndex(c => c.id === pagClienteId);
+      if (idx >= 0) todosClientes[idx] = { ...todosClientes[idx], saldo_fiado: ultimoCli.saldo_fiado };
+    }
+  }
+
+  // ── Cancelar pagamento ───────────────────────────────────────────────────────
+  async function cancelarPagamento(movId, valor) {
+    if (!confirmDialog(`Cancelar pagamento de ${fmtMoeda(valor)}?\nO saldo do cliente será revertido.`)) return;
+    try {
+      const cli = await api.clientes.cancelarMovimento(pagClienteId || extratoClienteAtual?.id, movId);
+      showToast('Pagamento cancelado e saldo revertido', 'warning');
+      // Atualiza cache e recarrega extrato
+      const idx = todosClientes.findIndex(c => c.id === cli.id);
+      if (idx >= 0) todosClientes[idx] = { ...todosClientes[idx], saldo_fiado: cli.saldo_fiado };
+      calcularKpis(todosClientes);
+      renderTabela();
+      if (extratoClienteAtual) {
+        extratoClienteAtual = { ...extratoClienteAtual, saldo_fiado: cli.saldo_fiado };
+        await carregarExtrato(cli.id);
+        // Atualiza saldo no header do extrato
+        abrirExtrato(extratoClienteAtual);
+      }
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  // Verifica se veio com ?id=X para abrir direto o cliente
+  const urlParams = new URLSearchParams(window.location.search);
+  const idDireto = urlParams.get('id');
+
+  carregar().then(() => {
+    if (idDireto) {
+      const c = todosClientes.find(x => x.id === parseInt(idDireto));
+      if (c) abrirExtrato(c);
+    }
+  });
+</script>
+</body>
+</html>

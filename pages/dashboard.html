@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-speedometer2 me-2"></i>Dashboard</h2>
+      <p id="data-hoje">Carregando...</p>
+    </div>
+    <a href="/pages/caixa.html" class="btn btn-pdv px-4">
+      <i class="bi bi-cart3 me-1"></i> Abrir Caixa
+    </a>
+  </div>
+
+  <!-- Filtro de período -->
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label class="form-label small fw-semibold mb-1">Período</label>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary active" id="btn-p-hoje"   onclick="setPeriodoDash('hoje',this)">Hoje</button>
+            <button class="btn btn-outline-secondary"        id="btn-p-semana" onclick="setPeriodoDash('semana',this)">7 dias</button>
+            <button class="btn btn-outline-secondary"        id="btn-p-mes"    onclick="setPeriodoDash('mes',this)">Este mês</button>
+            <button class="btn btn-outline-secondary"        id="btn-p-custom" onclick="setPeriodoDash('personalizado',this)">Personalizado</button>
+          </div>
+        </div>
+        <div class="col-auto" id="dash-periodo-custom" style="display:none">
+          <div class="d-flex gap-2">
+            <input type="date" id="dash-dt-inicio" class="form-control form-control-sm">
+            <input type="date" id="dash-dt-fim"    class="form-control form-control-sm">
+          </div>
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-pdv btn-sm" onclick="carregarDashboard()">
+            <i class="bi bi-search me-1"></i>Aplicar
+          </button>
+        </div>
+        <div class="col-auto ms-auto text-muted small" id="dash-periodo-label"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs linha 1 -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-3 col-6">
+      <div class="kpi-card kpi-green">
+        <div class="kpi-label" id="lbl-qtd">Vendas Hoje</div>
+        <div class="kpi-value" id="kpi-qtd">-</div>
+        <i class="bi bi-receipt kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-label" id="lbl-fat">Faturamento Hoje</div>
+        <div class="kpi-value" id="kpi-fat" style="font-size:1.2rem">-</div>
+        <i class="bi bi-cash-stack kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card kpi-orange">
+        <div class="kpi-label">Ticket Médio</div>
+        <div class="kpi-value" id="kpi-ticket" style="font-size:1.2rem">-</div>
+        <i class="bi bi-graph-up kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card kpi-red">
+        <div class="kpi-label">Alertas de Estoque</div>
+        <div class="kpi-value" id="kpi-alertas">-</div>
+        <i class="bi bi-exclamation-triangle kpi-icon"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs linha 2 -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#0f5132,#198754);color:#fff">
+        <div class="kpi-label" id="lbl-lucro" style="color:rgba(255,255,255,.75)">Lucro Hoje</div>
+        <div class="kpi-value" id="kpi-lucro" style="font-size:1.2rem">-</div>
+        <i class="bi bi-cash-coin kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#084298,#0d6efd);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Margem de Lucro</div>
+        <div class="kpi-value" id="kpi-margem" style="font-size:1.2rem">-</div>
+        <i class="bi bi-percent kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#4a2060,#6f42c1);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Produtos na Loja</div>
+        <div class="kpi-value" id="kpi-total-prod">-</div>
+        <i class="bi bi-box-seam kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#3d1a00,#fd7e14);color:#fff">
+        <div class="kpi-label" id="lbl-custo" style="color:rgba(255,255,255,.75)">Custo das Vendas</div>
+        <div class="kpi-value" id="kpi-custo" style="font-size:1.2rem">-</div>
+        <i class="bi bi-tags kpi-icon"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Gráfico -->
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header" id="chart-titulo">
+          <i class="bi bi-bar-chart me-1"></i> Vendas dos últimos 7 dias
+        </div>
+        <div class="card-body" style="height:260px">
+          <canvas id="chart-vendas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alertas de estoque -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> Estoque Baixo</span>
+          <a href="/pages/estoque.html" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+        </div>
+        <div class="card-body p-0" style="max-height:260px;overflow-y:auto">
+          <ul class="list-group list-group-flush" id="lista-alertas">
+            <li class="list-group-item text-muted small">Carregando...</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Últimas vendas -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between">
+          <span><i class="bi bi-clock-history me-1"></i> Últimas Vendas</span>
+          <a href="/pages/vendas.html" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead><tr>
+              <th>Nº</th><th>Data</th><th>Cliente</th><th>Vendedor</th><th>Pagamento</th>
+              <th class="text-end">Total</th><th>Status</th>
+            </tr></thead>
+            <tbody id="tabela-ultimas-vendas">
+              <tr><td colspan="7" class="text-center text-muted py-3">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Atalhos rápidos -->
+  <div class="row g-3 mt-1">
+    <div class="col-12"><h6 class="text-muted text-uppercase small fw-bold">Acesso Rápido</h6></div>
+    <div class="col-6 col-md-3">
+      <a href="/pages/produtos.html" class="card text-decoration-none text-center p-3 h-100">
+        <i class="bi bi-box-seam fs-3 text-success mb-1"></i>
+        <div class="small fw-semibold">Produtos</div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="/pages/clientes.html" class="card text-decoration-none text-center p-3 h-100">
+        <i class="bi bi-people fs-3 text-primary mb-1"></i>
+        <div class="small fw-semibold">Clientes</div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="/pages/estoque.html" class="card text-decoration-none text-center p-3 h-100">
+        <i class="bi bi-archive fs-3 text-warning mb-1"></i>
+        <div class="small fw-semibold">Estoque</div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="/pages/relatorios.html" class="card text-decoration-none text-center p-3 h-100">
+        <i class="bi bi-bar-chart-line fs-3 text-danger mb-1"></i>
+        <div class="small fw-semibold">Relatórios</div>
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/js/api.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script src="/js/components.js?v=2"></script>
+<script>
+  if (!getVendedor()) { window.location.href = '/'; throw ''; }
+  if (!temPermissao('dashboard')) { window.location.href = '/pages/caixa.html'; throw ''; }
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/dashboard.html');
+
+  let periodoAtualDash = 'hoje';
+  let chartVendas = null;
+
+  document.getElementById('data-hoje').textContent = new Date().toLocaleDateString('pt-BR',
+    { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  document.getElementById('dash-dt-inicio').value = inicioMesISO();
+  document.getElementById('dash-dt-fim').value    = dataHojeISO();
+
+  function setPeriodoDash(p, btn) {
+    periodoAtualDash = p;
+    document.querySelectorAll('#btn-p-hoje,#btn-p-semana,#btn-p-mes,#btn-p-custom').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('dash-periodo-custom').style.display = p === 'personalizado' ? '' : 'none';
+    if (p !== 'personalizado') carregarDashboard();
+  }
+
+  function getDatasDash() {
+    const hoje = dataHojeISO();
+    if (periodoAtualDash === 'hoje')   return { inicio: hoje, fim: hoje };
+    if (periodoAtualDash === 'semana') {
+      const d = new Date(); d.setDate(d.getDate() - 6);
+      return { inicio: d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'), fim: hoje };
+    }
+    if (periodoAtualDash === 'mes') return { inicio: inicioMesISO(), fim: hoje };
+    return {
+      inicio: document.getElementById('dash-dt-inicio').value || hoje,
+      fim:    document.getElementById('dash-dt-fim').value    || hoje,
+    };
+  }
+
+  async function carregarDashboard() {
+    const { inicio, fim } = getDatasDash();
+    const params = { data_inicio: inicio, data_fim: fim };
+    const isHoje = inicio === fim && inicio === dataHojeISO();
+    const sufixo = isHoje ? 'Hoje' : 'no Período';
+
+    document.getElementById('lbl-qtd').textContent  = `Vendas ${sufixo}`;
+    document.getElementById('lbl-fat').textContent  = `Faturamento ${sufixo}`;
+    document.getElementById('lbl-lucro').textContent = `Lucro ${sufixo}`;
+    document.getElementById('lbl-custo').textContent = `Custo ${sufixo}`;
+
+    const ini  = new Date(inicio + 'T12:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+    const fim2 = new Date(fim    + 'T12:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+    document.getElementById('dash-periodo-label').textContent = inicio === fim ? ini : `${ini} → ${fim2}`;
+
+    try {
+      const resumo = await api.relatorios.resumoDia();
+      document.getElementById('kpi-total-prod').textContent = (resumo.total_produtos != null ? resumo.total_produtos : '-');
+    } catch(e) {}
+
+    try {
+      const alertas = await api.estoque.alertas();
+      document.getElementById('kpi-alertas').textContent = alertas.length;
+      const ul = document.getElementById('lista-alertas');
+      ul.innerHTML = alertas.length === 0
+        ? '<li class="list-group-item text-success small"><i class="bi bi-check-circle me-1"></i>Estoque em dia!</li>'
+        : alertas.map(a => `<li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3" style="font-size:.82rem">
+            <span>${a.nome}</span>
+            <span class="badge-stock ${a.estoque_atual <= 0 ? 'stock-empty' : 'stock-low'}">${a.estoque_atual} ${a.unidade}</span>
+          </li>`).join('');
+    } catch(e) {}
+
+    try {
+      const dias = await api.relatorios.vendasPeriodo(params);
+      const fat   = dias.reduce((s, d) => s + (d.total    || 0), 0);
+      const custo = dias.reduce((s, d) => s + (d.custo    || 0), 0);
+      const lucro = fat - custo;
+      const qtd   = dias.reduce((s, d) => s + (d.quantidade || 0), 0);
+      const ticket = qtd > 0 ? fat / qtd : 0;
+      const margem = fat > 0 ? lucro / fat * 100 : 0;
+
+      document.getElementById('kpi-qtd').textContent    = qtd;
+      document.getElementById('kpi-fat').textContent    = fmtMoeda(fat);
+      document.getElementById('kpi-ticket').textContent = fmtMoeda(ticket);
+      document.getElementById('kpi-lucro').textContent  = fmtMoeda(lucro);
+      document.getElementById('kpi-margem').textContent = margem.toFixed(1) + '%';
+      document.getElementById('kpi-custo').textContent  = fmtMoeda(custo);
+
+      const labels = dias.map(d => new Date(d.data + 'T12:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }));
+      const values = dias.map(d => d.total);
+      const lucros = dias.map(d => (d.lucro != null ? d.lucro : 0));
+      const nDias  = dias.length;
+      const tituloChart = nDias <= 1 ? 'Vendas de Hoje' :
+                          nDias <= 7 ? `Vendas dos últimos ${nDias} dias` :
+                          `Vendas: ${ini} → ${fim2}`;
+      document.getElementById('chart-titulo').innerHTML = `<i class="bi bi-bar-chart me-1"></i> ${tituloChart}`;
+
+      if (chartVendas) chartVendas.destroy();
+      chartVendas = new Chart(document.getElementById('chart-vendas'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Faturamento', data: values, backgroundColor: '#2d8a4e', borderRadius: 4, borderSkipped: false },
+            { label: 'Lucro',       data: lucros, backgroundColor: '#ffc107', borderRadius: 4, borderSkipped: false },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } },
+          scales: { y: { ticks: { callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR') } } }
+        }
+      });
+    } catch(e) {}
+
+    try {
+      const vendas = await api.vendas.listar({ ...params, limite: 8 });
+      const tbody = document.getElementById('tabela-ultimas-vendas');
+      tbody.innerHTML = vendas.length === 0
+        ? '<tr><td colspan="7" class="text-center text-muted py-3">Nenhuma venda no período</td></tr>'
+        : vendas.map(v => `<tr>
+            <td><strong>${v.numero_venda}</strong></td>
+            <td>${fmtData(v.criado_em)}</td>
+            <td>${v.cliente ? v.cliente.nome : '<span class="text-muted">-</span>'}</td>
+            <td>${v.vendedor ? v.vendedor.nome : '-'}</td>
+            <td>${nomePagamento(v.forma_pagamento)}</td>
+            <td class="text-end fw-bold">${fmtMoeda(v.total)}</td>
+            <td>${badgeStatus(v.status)}</td>
+          </tr>`).join('');
+    } catch(e) {}
+  }
+
+  carregarDashboard();
+</script>
+</body>
+</html>

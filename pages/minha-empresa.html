@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Minha Empresa — FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    .stat-card {
+      background: #fff; border-radius: 14px;
+      padding: 1.4rem; box-shadow: 0 2px 12px rgba(0,0,0,.06); height: 100%;
+    }
+    .stat-label {
+      font-size: .72rem; font-weight: 700; letter-spacing: .8px;
+      text-transform: uppercase; color: #8fa3b8; margin-bottom: .4rem;
+    }
+    .stat-num  { font-size: 2.2rem; font-weight: 900; color: #1a2540; line-height: 1; }
+    .stat-sub  { font-size: .82rem; color: #6c757d; margin-top: .2rem; }
+    .status-badge {
+      display: inline-block; border-radius: 20px;
+      padding: .3rem .9rem; font-size: .8rem; font-weight: 700;
+    }
+    .badge-trial    { background: rgba(45,184,138,.15); color: #2db88a; border: 1px solid rgba(45,184,138,.3); }
+    .badge-ativo    { background: rgba(26,37,64,.10);   color: #1a2540; border: 1px solid rgba(26,37,64,.2); }
+    .badge-bloqueado{ background: rgba(220,53,69,.12);  color: #dc3545; border: 1px solid rgba(220,53,69,.3); }
+    .badge-cancelado{ background: rgba(255,193,7,.15);  color: #856404; border: 1px solid rgba(255,193,7,.3); }
+    .trial-bar { height: 8px; border-radius: 4px; background: #e9ecef; overflow: hidden; margin: .5rem 0; }
+    .trial-fill { height: 100%; border-radius: 4px; transition: width .6s; }
+    .info-row { display: flex; flex-direction: column; gap: .1rem; }
+    .info-row label { font-size: .72rem; font-weight: 700; text-transform: uppercase; color: #8fa3b8; letter-spacing: .5px; }
+    .info-row span  { font-weight: 600; color: #333; }
+  </style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+
+<div class="main-content">
+  <div class="page-header">
+    <h2><i class="bi bi-building me-2"></i>Minha Empresa</h2>
+    <p class="text-muted">Informações da sua conta FastPOS</p>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="text-center py-5">
+    <div class="spinner-border text-success"></div>
+    <p class="mt-2 text-muted small">Carregando...</p>
+  </div>
+
+  <!-- Conteúdo -->
+  <div id="conteudo" style="display:none">
+
+    <!-- Nome + status -->
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+      <div>
+        <h5 class="fw-bold mb-1" id="p-nome">—</h5>
+        <div class="d-flex align-items-center gap-2">
+          <span class="status-badge" id="p-status-badge">—</span>
+          <span class="text-muted small" id="p-sub-txt"></span>
+        </div>
+      </div>
+      <a href="/pages/assinatura.html" class="btn btn-dark px-4 fw-bold">
+        <i class="bi bi-credit-card me-2"></i>Gerenciar assinatura
+      </a>
+    </div>
+
+    <!-- Cards -->
+    <div class="row g-3 mb-3">
+
+      <!-- Trial / Assinatura -->
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="stat-label"><i class="bi bi-calendar2-check me-1"></i>Status</div>
+          <div id="card-trial">
+            <div class="d-flex align-items-end gap-1">
+              <div class="stat-num" id="p-dias">—</div>
+              <div class="pb-1 text-muted" style="font-size:.9rem">dias</div>
+            </div>
+            <div class="trial-bar">
+              <div class="trial-fill" id="p-trial-bar" style="width:0%;background:var(--primary)"></div>
+            </div>
+            <div class="stat-sub">Válido até <strong id="p-trial-fim">—</strong></div>
+          </div>
+          <div id="card-ativo" style="display:none">
+            <div class="stat-num" style="font-size:2rem;color:#1a2540">✓</div>
+            <div class="stat-sub mt-1">Assinatura ativa</div>
+            <div class="stat-sub" id="p-vencimento-ativo"></div>
+          </div>
+          <div id="card-bloqueado" style="display:none" class="text-danger small">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Assinatura bloqueada.<br>Regularize para continuar.
+          </div>
+        </div>
+      </div>
+
+      <!-- Operadores -->
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="stat-label"><i class="bi bi-people me-1"></i>Operadores</div>
+          <div class="d-flex align-items-end gap-1">
+            <div class="stat-num" id="p-usuarios">—</div>
+            <div class="pb-1 text-muted" style="font-size:.9rem" id="p-max-usuarios"></div>
+          </div>
+          <div class="stat-sub">usuários cadastrados</div>
+          <div class="mt-2">
+            <a href="/pages/vendedores.html" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-person-plus me-1"></i>Gerenciar
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Plano -->
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="stat-label"><i class="bi bi-star me-1"></i>Plano</div>
+          <div class="stat-num fs-2 mb-1" id="p-plano">—</div>
+          <div class="stat-sub" id="p-plano-usuarios"></div>
+          <div class="mt-2">
+            <a href="/pages/assinatura.html" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-arrow-up-circle me-1"></i>Ver planos
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Add-ons -->
+    <div class="stat-card mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="fw-bold"><i class="bi bi-puzzle me-2"></i>Add-ons / Módulos</div>
+        <a href="/pages/assinatura.html" class="text-muted small text-decoration-none">
+          <i class="bi bi-gear me-1"></i>Gerenciar add-ons
+        </a>
+      </div>
+      <div class="row g-3" id="addons-lista">
+        <!-- Preenchido via JS -->
+        <div class="col-12 text-center text-muted small py-2">
+          <span class="spinner-border spinner-border-sm me-1"></span> Carregando...
+        </div>
+      </div>
+    </div>
+
+    <!-- Dados -->
+    <div class="stat-card">
+      <div class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Dados da Conta</div>
+      <div class="row g-3">
+        <div class="col-sm-4">
+          <div class="info-row">
+            <label>Operador logado</label>
+            <span id="p-operador">—</span>
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <div class="info-row">
+            <label>Subdomínio</label>
+            <span><code id="p-sub-code">—</code>.fastpos.com.br</span>
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <div class="info-row">
+            <label>URL do sistema</label>
+            <a id="p-url-link" href="#" class="text-success fw-semibold small">—</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /conteudo -->
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script src="/js/components.js?v=2"></script>
+<script>
+if (!requireLogin()) { /* requireLogin redireciona */ }
+if (!isAdmin()) { window.location.href = '/pages/caixa.html'; }
+
+function voltarPagina() {
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    window.location.href = '/pages/caixa.html';
+  }
+}
+
+// Botão físico de voltar no Android (Capacitor)
+if (window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.App) {
+  Capacitor.Plugins.App.addListener('backButton', () => voltarPagina());
+} else {
+  document.addEventListener('backbutton', voltarPagina);
+}
+
+document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/minha-empresa.html');
+setActiveNav('/pages/minha-empresa.html');
+
+(async () => {
+  const v   = getVendedor();
+  const sub = localStorage.getItem('pdv_subdominio') ||
+              (window.location.hostname.split('.').length >= 4
+                ? window.location.hostname.split('.')[0]
+                : null);
+
+  // Dados do operador
+  document.getElementById('p-operador').textContent = v ? v.nome : '—';
+
+  if (!sub) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('conteudo').style.display = '';
+    return;
+  }
+
+  // Carregar status dos add-ons
+  try {
+    const r = await fetch(`/api/pagamentos/addon/status/${sub || '_local'}`);
+    if (r.ok) {
+      const addons = await r.json();
+      const icones = { mesas: 'bi-grid-3x3' };
+      const cores  = { mesas: '#10b981' };
+      const nomes  = { mesas: 'Módulo de Mesas' };
+      const descs  = { mesas: 'Gestão de mesas e comandas para restaurantes' };
+
+      document.getElementById('addons-lista').innerHTML = Object.entries(addons).map(([key, a]) => {
+        const ativo = a.status === 'ativo' || a.status === 'cancelado_carencia';
+        const badgeCls = ativo ? 'bg-success' : 'bg-secondary';
+        const badgeTxt = a.status === 'ativo' ? 'Ativo'
+                       : a.status === 'cancelado_carencia' ? `Ativo até ${a.vencimento}`
+                       : 'Inativo';
+        const btnLabel = ativo ? 'Gerenciar' : 'Contratar';
+        const btnCls   = ativo ? 'btn-outline-secondary' : 'btn-pdv';
+        return `
+        <div class="col-md-5">
+          <div class="border rounded p-3 d-flex align-items-center gap-3">
+            <i class="bi ${icones[key]||'bi-puzzle'}" style="font-size:1.8rem;color:${cores[key]||'#2563eb'}"></i>
+            <div class="flex-grow-1">
+              <div class="fw-semibold">${nomes[key]||key}</div>
+              <div class="small text-muted">${descs[key]||''}</div>
+              <span class="badge ${badgeCls} mt-1" style="font-size:.7rem">${badgeTxt}</span>
+            </div>
+            <a href="/pages/assinatura.html" class="btn btn-sm ${btnCls}">${btnLabel}</a>
+          </div>
+        </div>`;
+      }).join('') || '<div class="col-12 text-muted small">Nenhum add-on disponível.</div>';
+    }
+  } catch(e) {
+    // dev local sem subdomínio — mostra estado a partir de modulos_ativos
+    try {
+      const minhaEmp = await api.empresas.minha();
+      let modulos = [];
+      try { modulos = JSON.parse(minhaEmp.modulos_ativos || '[]'); } catch(e2) {}
+      const ativo = modulos.includes('mesas');
+      document.getElementById('addons-lista').innerHTML = `
+        <div class="col-md-5">
+          <div class="border rounded p-3 d-flex align-items-center gap-3">
+            <i class="bi bi-grid-3x3" style="font-size:1.8rem;color:#10b981"></i>
+            <div class="flex-grow-1">
+              <div class="fw-semibold">Módulo de Mesas</div>
+              <div class="small text-muted">Gestão de mesas e comandas para restaurantes</div>
+              <span class="badge ${ativo ? 'bg-success' : 'bg-secondary'} mt-1" style="font-size:.7rem">${ativo ? 'Ativo' : 'Inativo'}</span>
+            </div>
+            <a href="/pages/assinatura.html" class="btn btn-sm ${ativo ? 'btn-outline-secondary' : 'btn-pdv'}">${ativo ? 'Gerenciar' : 'Contratar'}</a>
+          </div>
+        </div>`;
+    } catch(e2) { /* silencia */ }
+  }
+
+  try {
+    // Usa empresas/status (master) — retorna nome, dias_trial, max_usuarios, plano
+    const [empStatus, pagStatus] = await Promise.all([
+      fetch(`/api/empresas/status/${sub}`).then(r => r.json()).catch(() => ({})),
+      fetch(`/api/pagamentos/status/${sub}`).then(r => r.json()).catch(() => ({})),
+    ]);
+    // Mescla os dois — empresas/status tem nome/dias/max, pagamentos/status tem vencimento
+    const status = { ...empStatus, vencimento: pagStatus.vencimento };
+
+    // Contagem de usuários (usa X-Tenant para chamar API do tenant)
+    let totalUsuarios = '?';
+    try {
+      const vends = await apiFetch('/vendedores/');
+      totalUsuarios = Array.isArray(vends) ? vends.length : '?';
+    } catch {}
+
+    renderDados(sub, status, totalUsuarios);
+  } catch (e) {
+    renderDados(sub, {}, '?');
+  }
+})();
+
+function renderDados(sub, data, totalUsuarios) {
+  document.getElementById('loading').style.display  = 'none';
+  document.getElementById('conteudo').style.display = '';
+
+  const url = `https://${sub}.fastpos.com.br`;
+
+  // Nome + subdomínio
+  document.getElementById('p-nome').textContent    = data.nome || data.plano || sub;
+  document.getElementById('p-sub-txt').textContent = sub + '.fastpos.com.br';
+
+  // Status badge
+  const badge = document.getElementById('p-status-badge');
+  const st    = data.status || 'trial';
+  if (st === 'trial') {
+    badge.className   = 'status-badge badge-trial';
+    badge.textContent = '⏳ Trial';
+  } else if (st === 'ativo') {
+    badge.className   = 'status-badge badge-ativo';
+    badge.textContent = '✓ Ativo';
+  } else if (st === 'bloqueado') {
+    badge.className   = 'status-badge badge-bloqueado';
+    badge.textContent = '🔴 Bloqueado';
+  } else {
+    badge.className   = 'status-badge badge-cancelado';
+    badge.textContent = '⚠ Cancelado';
+  }
+
+  // Card Trial / Ativo / Bloqueado
+  if (st === 'bloqueado') {
+    document.getElementById('card-trial').style.display    = 'none';
+    document.getElementById('card-ativo').style.display    = 'none';
+    document.getElementById('card-bloqueado').style.display = '';
+  } else if (st === 'ativo') {
+    document.getElementById('card-trial').style.display    = 'none';
+    document.getElementById('card-bloqueado').style.display = 'none';
+    document.getElementById('card-ativo').style.display    = '';
+    if (data.vencimento) {
+      document.getElementById('p-vencimento-ativo').textContent = 'Válido até ' + data.vencimento;
+    }
+  } else {
+    document.getElementById('card-ativo').style.display    = 'none';
+    document.getElementById('card-bloqueado').style.display = 'none';
+    const dias = data.dias_trial ?? 0;
+    document.getElementById('p-dias').textContent      = dias;
+    document.getElementById('p-trial-fim').textContent = data.trial_fim || '—';
+    const pct = Math.min(100, Math.round((dias / 30) * 100));
+    const bar = document.getElementById('p-trial-bar');
+    bar.style.width      = pct + '%';
+    bar.style.background = dias <= 5 ? '#dc3545' : dias <= 10 ? '#fd7e14' : '#2db88a';
+  }
+
+  // Usuários
+  document.getElementById('p-usuarios').textContent     = totalUsuarios;
+  const max = data.max_usuarios;
+  document.getElementById('p-max-usuarios').textContent = max ? `/ ${max}` : '';
+
+  // Plano
+  document.getElementById('p-plano').textContent          = data.plano || 'Trial';
+  document.getElementById('p-plano-usuarios').textContent = max ? `Até ${max} usuários` : '';
+
+  // Dados
+  document.getElementById('p-sub-code').textContent = sub;
+  const link = document.getElementById('p-url-link');
+  link.textContent = sub + '.fastpos.com.br';
+  link.href        = url;
+}
+
+</script>
+</body>
+</html>

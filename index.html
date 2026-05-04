@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FastPOS - Login</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0d1b2a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0a1628;
+      background-image:
+        radial-gradient(ellipse 70% 60% at 15% 50%, rgba(30,80,160,.55) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 60% at 85% 50%, rgba(20,60,130,.35) 0%, transparent 70%);
+    }
+    .login-wrap {
+      width: 100%;
+      max-width: 400px;
+      padding: 1rem;
+    }
+    .login-card {
+      background: #0f1d30;
+      border-radius: 18px;
+      padding: 2.8rem 2.4rem;
+      box-shadow: 0 24px 64px rgba(0,0,0,.6);
+      border: 1px solid rgba(255,255,255,.07);
+    }
+    .login-header { text-align: center; margin-bottom: 1.6rem; }
+    .login-header img { height: 120px; width: auto; margin-bottom: .9rem; }
+    .login-tagline { color: rgba(255,255,255,.5); font-size: .9rem; margin-bottom: .7rem; }
+    .trial-badge {
+      background: #2a9e5f; color: #fff;
+      font-size: .75rem; font-weight: 700;
+      padding: .3rem .9rem; border-radius: 20px;
+      display: inline-block; margin-bottom: .2rem;
+    }
+    .login-subtitle {
+      text-align: center;
+      color: rgba(255,255,255,.5);
+      font-size: .9rem;
+      margin-bottom: 1.8rem;
+    }
+    .criar-conta-link {
+      text-align: center; margin-top: 1.1rem;
+      font-size: .85rem; color: rgba(255,255,255,.45);
+    }
+    .criar-conta-link a { color: #4cc98a; font-weight: 600; text-decoration: none; }
+    .criar-conta-link a:hover { text-decoration: underline; }
+    .form-label {
+      font-weight: 600;
+      font-size: .88rem;
+      color: #fff;
+      margin-bottom: .4rem;
+    }
+    .form-control {
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      color: #fff;
+      border-radius: 10px;
+      padding: .7rem 1rem;
+      font-size: .95rem;
+    }
+    .form-control::placeholder { color: rgba(255,255,255,.25); }
+    .form-control:focus {
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.25);
+      color: #fff;
+      box-shadow: none;
+    }
+    .btn-entrar {
+      background: #2a9e5f;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      width: 100%;
+      padding: .78rem;
+      font-weight: 700;
+      font-size: 1rem;
+      margin-top: .5rem;
+      transition: background .15s, transform .1s;
+    }
+    .btn-entrar:hover { background: #1e7d49; color: #fff; transform: translateY(-1px); }
+    .btn-entrar:disabled { background: #1e7d49; opacity: .7; }
+    #login-titulo {
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #fff;
+      margin-bottom: .4rem;
+    }
+    #login-error { color: #ff8a9b; font-size: .85rem; margin-top: .5rem; }
+    #bloqueio-acoes hr { border-color: rgba(255,255,255,.1); }
+    #bloqueio-acoes p { color: rgba(255,255,255,.5); }
+    .copyright {
+      text-align: center;
+      color: rgba(255,255,255,.25);
+      font-size: .75rem;
+      margin-top: 1.3rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-card">
+
+    <div class="login-header">
+      <img src="/images/logo-fastpos.png" alt="FastPOS"
+           onerror="this.style.display='none'">
+      <div class="login-tagline">Crie sua conta grátis — sem cartão de crédito</div>
+      <span class="trial-badge">30 dias grátis · até 5 usuários</span>
+    </div>
+
+    <div id="login-titulo" style="display:none"></div>
+    <div class="login-subtitle">Faça login para continuar</div>
+
+    <div class="mb-3">
+      <label class="form-label">E-mail</label>
+      <input type="email" id="login-nome" class="form-control"
+             placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Senha</label>
+      <input type="password" id="login-senha" class="form-control"
+             placeholder="••••••••" autocomplete="current-password">
+    </div>
+
+    <button class="btn-entrar" onclick="doLogin()" id="btn-login">
+      <i class="bi bi-box-arrow-in-right me-1"></i> Entrar
+    </button>
+
+    <div id="login-error" style="display:none"></div>
+
+    <div class="criar-conta-link">
+      Ainda não tem conta?
+      <a href="https://fastpos.com.br/registro">Crie agora</a>
+    </div>
+
+    <!-- Botão para ir para Assinatura quando empresa está bloqueada -->
+    <div id="bloqueio-acoes" class="mt-3" style="display:none">
+      <hr class="my-3">
+      <p class="small mb-2 text-center">Sua assinatura precisa ser regularizada para acessar o sistema.</p>
+      <a href="/pages/assinatura.html" class="btn btn-outline-success w-100 fw-semibold">
+        <i class="bi bi-credit-card me-1"></i> Ver planos e assinar
+      </a>
+    </div>
+
+  </div>
+
+  <p class="copyright">FastPOS © 2026</p>
+
+  <p class="text-center mt-1" id="btn-trocar-servidor" style="display:none">
+    <a href="/setup.html?reset=1" style="font-size:.75rem;color:rgba(255,255,255,.2);text-decoration:none">
+      <i class="bi bi-hdd-network"></i> Trocar servidor
+    </a>
+  </p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=2"></script>
+<script src="/js/utils.js?v=2"></script>
+<script>
+  const _isCapacitorApp = window.location.protocol === 'capacitor:' || window.Capacitor !== undefined;
+  if (_isCapacitorApp) document.getElementById('btn-trocar-servidor').style.display = '';
+
+  const _isCapacitor = window.location.protocol === 'capacitor:' || window.Capacitor !== undefined;
+  const _temServidor = localStorage.getItem('pdv_server_url');
+  if (_isCapacitor && (!_temServidor || _temServidor === 'http://127.0.0.1:8000')) {
+    window.location.href = '/setup.html';
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
+  if (getVendedor()) {
+    window.location.href = '/pages/caixa.html';
+  }
+
+  (async () => {
+    try {
+      const cached = sessionStorage.getItem('config_loja');
+      const cfg = cached ? JSON.parse(cached) : await api.configuracoes.listar();
+      if (cfg.nome_empresa && cfg.nome_empresa.trim()) {
+        const titulo = document.getElementById('login-titulo');
+        titulo.textContent = cfg.nome_empresa.trim();
+        titulo.style.display = '';
+        document.title = cfg.nome_empresa.trim() + ' - Login';
+      }
+    } catch { /* servidor ainda não iniciou */ }
+  })();
+
+  async function doLogin() {
+    const nome  = document.getElementById('login-nome').value.trim();
+    const senha = document.getElementById('login-senha').value;
+    const errEl = document.getElementById('login-error');
+    const btn   = document.getElementById('btn-login');
+    errEl.style.display = 'none';
+    if (!nome || !senha) { errEl.textContent = 'Preencha e-mail e senha'; errEl.style.display = ''; return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Entrando...';
+    try {
+      const v = await api.vendedores.login(nome, senha);
+      setVendedor(v);
+      window.location.href = '/pages/caixa.html';
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = '';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i> Entrar';
+
+      const msgLower = (e.message || '').toLowerCase();
+      if (msgLower.includes('bloqueado') || msgLower.includes('assinatura')) {
+        document.getElementById('bloqueio-acoes').style.display = '';
+      }
+    }
+  }
+
+  document.getElementById('login-senha').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+</script>
+</body>
+</html>

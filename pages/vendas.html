@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Histórico de Vendas - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    /* ── Mobile ── */
+    @media (max-width: 767px) {
+      .resumo-stats { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; }
+      .resumo-stats span { background: #f8f9fa; border-radius: 6px; padding: .3rem .5rem; }
+      .btn-acao { min-width: 40px; min-height: 40px; display:inline-flex; align-items:center; justify-content:center; }
+      .filtros-extra { display: none; }
+      .filtros-extra.aberto { display: block !important; }
+      #tabela-vendas tr td:first-child { padding-left: .6rem; }
+      .venda-num { font-size: .75rem; font-weight: 700; color: #888; }
+      .venda-info { font-size: .74rem; color: #666; margin-top: 2px; line-height: 1.5; }
+      .venda-cliente { font-size: .95rem; font-weight: 600; color: #333; }
+    }
+
+    /* ── Modal Detalhe — mobile otimizado (Fold 6, telas estreitas) ── */
+    .det-unit-mobile { display: none; }
+    @media (max-width: 575px) {
+      /* Oculta coluna Unit. na tabela de itens */
+      .det-col-unit { display: none !important; }
+      /* Mostra preço inline abaixo do nome do produto */
+      .det-unit-mobile { display: block; font-size: .73rem; color: #555; margin-top: 1px; }
+
+      /* Foto menor */
+      .det-col-foto { width: 28px !important; }
+      .det-col-foto img,
+      .det-col-foto > div { width: 26px !important; height: 26px !important; }
+
+      /* Total + Lucro: empilha verticalmente */
+      .det-total-row { flex-direction: column !important; align-items: flex-end !important; gap: .6rem !important; }
+      .det-total-row .det-lucro-box { border-left: none !important; border-top: 1px solid #dee2e6; padding-left: 0 !important; padding-top: .5rem !important; }
+
+      /* Botões do rodapé do modal: compactos e em 2 linhas */
+      #modalDetalhe .modal-footer { flex-wrap: wrap; gap: .35rem; padding: .6rem; }
+      #modalDetalhe .modal-footer .btn { flex: 1 1 40%; font-size: .78rem; padding: .3rem .5rem; }
+    }
+    @media (min-width: 768px) {
+      .btn-toggle-filtros { display: none; }
+      .filtros-extra { display: block !important; }
+    }
+    .so-admin { display: none; }
+    #print-area { display: none; }
+    @media print {
+      body > * { display: none !important; }
+      #print-area {
+        display: block !important;
+        position: absolute; top: 0; left: 0;
+        width: 100%; padding: 0; margin: 0;
+        font-family: 'Courier New', Courier, monospace; font-size: 12px;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+      #print-area pre {
+        white-space: pre;
+        word-break: normal;
+        overflow-wrap: normal;
+        overflow: visible;
+        margin: 0;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      #print-area .print-header { text-align:center; margin-bottom: 8px; }
+      #print-area .print-header h4 { margin:0; font-size:13px; }
+      #print-area .print-header p  { margin:2px 0; font-size:10px; color:#555; }
+      #print-area table { width:100%; border-collapse:collapse; font-size:9.5px; }
+      #print-area th, #print-area td { border:1px solid #bbb; padding:3px 5px; }
+      #print-area thead th { background:#e8e8e8; font-weight:bold; }
+      #print-area .tr-total td { font-weight:bold; border-top:2px solid #333; background:#f5f5f5; }
+      #print-area .tr-cancelada td { color:#999; text-decoration:line-through; }
+      @page { margin: 4mm; size: 80mm auto; }
+    }
+  </style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+  <div class="card mb-2">
+    <div class="card-body py-2 px-3">
+
+      <!-- Linha 1: título + datas + ações -->
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <h2 class="mb-0 me-1 text-nowrap" style="font-size:1.05rem;font-weight:700;color:var(--text-main)">
+          <i class="bi bi-receipt me-1"></i>Histórico de Vendas
+        </h2>
+        <input type="date" id="f-inicio" class="form-control form-control-sm" style="width:132px">
+        <span class="text-muted small d-none d-sm-inline">→</span>
+        <input type="date" id="f-fim" class="form-control form-control-sm" style="width:132px">
+        <div class="d-flex gap-1 ms-auto">
+          <button class="btn btn-pdv btn-sm" onclick="carregar()">
+            <i class="bi bi-search me-1"></i><span class="d-none d-md-inline">Buscar</span>
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="limparFiltros()" title="Limpar filtros">
+            <i class="bi bi-x-lg"></i>
+          </button>
+          <button class="btn btn-outline-secondary btn-sm btn-toggle-filtros" onclick="toggleFiltros()" id="btn-toggle-filtros" title="Mais filtros">
+            <i class="bi bi-funnel"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Linha 2: filtros extras -->
+      <div class="filtros-extra mt-2">
+        <div class="row g-2 align-items-end">
+          <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold mb-1">Status</label>
+            <select id="f-status" class="form-select form-select-sm">
+              <option value="">Todos</option>
+              <option value="concluida">Concluídas</option>
+              <option value="cancelada">Canceladas</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold mb-1">Pagamento</label>
+            <select id="f-forma" class="form-select form-select-sm">
+              <option value="">Todos</option>
+              <option value="dinheiro">💵 Dinheiro</option>
+              <option value="debito">💳 Débito</option>
+              <option value="credito">💳 Crédito</option>
+              <option value="pix">📱 PIX</option>
+              <option value="boleto">📄 Boleto</option>
+              <option value="fiado">🤝 Fiado</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label small fw-semibold mb-1">Vendedor</label>
+            <select id="f-vendedor" class="form-select form-select-sm">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-5 position-relative">
+            <label class="form-label small fw-semibold mb-1">Cliente</label>
+            <input type="text" id="f-cliente-text" class="form-control form-control-sm"
+              placeholder="Digite o nome..." autocomplete="off" oninput="onBuscaCliente()">
+            <input type="hidden" id="f-cliente-id">
+            <div id="f-cliente-drop" style="display:none;position:absolute;z-index:300;width:100%;background:#fff;border:1px solid #dee2e6;border-radius:0 0 6px 6px;max-height:180px;overflow-y:auto;top:100%;left:0"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Totalizador dos resultados -->
+      <div id="resumo-filtro" class="mt-2 pt-2 border-top d-none">
+        <div class="resumo-stats d-flex flex-wrap gap-2 justify-content-between align-items-center">
+          <div class="resumo-stats d-flex flex-wrap gap-3">
+            <span class="small text-muted"><i class="bi bi-receipt me-1"></i>Vendas: <strong id="res-qtd">0</strong></span>
+            <span class="small text-muted so-admin"><i class="bi bi-cash me-1"></i>Faturamento: <strong id="res-fat" class="text-success">R$ 0,00</strong></span>
+            <span class="small text-muted"><i class="bi bi-x-circle me-1"></i>Canceladas: <strong id="res-cancel" class="text-danger">0</strong></span>
+            <span class="small text-muted so-admin"><i class="bi bi-graph-up me-1"></i>Ticket médio: <strong id="res-ticket">R$ 0,00</strong></span>
+          </div>
+          <div class="d-flex gap-2 flex-shrink-0">
+            <button class="btn btn-outline-secondary btn-sm" onclick="imprimirLista()" title="Imprimir lista">
+              <i class="bi bi-printer me-1"></i><span class="d-none d-md-inline">Imprimir</span>
+            </button>
+            <button class="btn btn-outline-success btn-sm" onclick="exportarXLSX()" title="Exportar para Excel">
+              <i class="bi bi-file-excel me-1"></i><span class="d-none d-md-inline">Exportar XLSX</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead><tr>
+          <th>Nº Venda</th>
+          <th class="d-none d-md-table-cell">Data</th>
+          <th class="d-none d-md-table-cell">Cliente</th>
+          <th class="d-none d-md-table-cell">Vendedor</th>
+          <th class="d-none d-md-table-cell">Pagamento</th>
+          <th class="text-end">Total</th>
+          <th class="d-none d-md-table-cell">Status</th>
+          <th class="text-center">Ações</th>
+        </tr></thead>
+        <tbody id="tabela-vendas"><tr><td colspan="8" class="text-center py-3 text-muted">Use os filtros acima para buscar vendas</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalhe -->
+<div class="modal fade" id="modalDetalhe" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Detalhe da Venda <span id="det-numero"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="det-body">Carregando...</div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        <button class="btn btn-outline-success" onclick="compartilharVenda()"><i class="bi bi-share me-1"></i>Compartilhar</button>
+        <button class="btn btn-outline-secondary" onclick="imprimirVenda()"><i class="bi bi-printer me-1"></i>Imprimir</button>
+        <button class="btn btn-danger" id="btn-cancelar" onclick="cancelarVenda()"><i class="bi bi-x-circle me-1"></i>Cancelar Venda</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="/js/api.js?v=2"></script><script src="/js/utils.js?v=2"></script><script src="/js/components.js?v=2"></script><script src="/js/tcp-print.js?v=1"></script>
+<script>
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/vendas.html');
+  if (!requirePermissao('historico_vendas')) throw '';
+  if (isAdmin()) document.querySelectorAll('.so-admin').forEach(el => el.classList.remove('so-admin'));
+  const modalDetalhe = new bootstrap.Modal(document.getElementById('modalDetalhe'));
+  let vendaSelecionada = null;
+  let cliTimer = null;
+  let listCliFiltro = [];
+  let listaVendas = [];
+
+  // ── Init ──────────────────────────────────────────
+  async function init() {
+    // Datas padrão (hoje)
+    document.getElementById('f-inicio').value = dataHojeISO();
+    document.getElementById('f-fim').value = dataHojeISO();
+
+    // Preencher select de vendedores
+    try {
+      const vends = await api.vendedores.listar();
+      const sel = document.getElementById('f-vendedor');
+      vends.forEach(v => sel.add(new Option(v.nome, v.id)));
+    } catch(_) {}
+
+    carregar();
+  }
+
+  // ── Autocomplete de cliente ───────────────────────
+  function onBuscaCliente() {
+    clearTimeout(cliTimer);
+    const val = document.getElementById('f-cliente-text').value.trim();
+    document.getElementById('f-cliente-id').value = '';  // limpa seleção anterior
+    const drop = document.getElementById('f-cliente-drop');
+    if (!val) { drop.style.display = 'none'; return; }
+    cliTimer = setTimeout(async () => {
+      listCliFiltro = ((await api.clientes.listar(val)) || []).slice(0, 8);
+      if (!listCliFiltro.length) { drop.style.display = 'none'; return; }
+      drop.style.display = '';
+      drop.innerHTML = listCliFiltro.map((c, i) =>
+        `<div style="padding:.4rem .75rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid #f5f5f5"
+          onmousedown="selecionarCliFiltro(${i})">
+          <strong>${c.nome}</strong>
+          ${c.cpf_cnpj ? `<span class="text-muted ms-1">${c.cpf_cnpj}</span>` : ''}
+        </div>`
+      ).join('');
+    }, 250);
+  }
+
+  function selecionarCliFiltro(i) {
+    const c = listCliFiltro[i];
+    document.getElementById('f-cliente-id').value = c.id;
+    document.getElementById('f-cliente-text').value = c.nome;
+    document.getElementById('f-cliente-drop').style.display = 'none';
+  }
+
+  // Fechar dropdown ao clicar fora
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#f-cliente-text') && !e.target.closest('#f-cliente-drop'))
+      document.getElementById('f-cliente-drop').style.display = 'none';
+  });
+
+  // ── Toggle filtros (mobile) ───────────────────────
+  function toggleFiltros() {
+    const el  = document.querySelector('.filtros-extra');
+    const btn = document.getElementById('btn-toggle-filtros');
+    const aberto = el.classList.toggle('aberto');
+    btn.innerHTML = aberto
+      ? '<i class="bi bi-funnel-fill me-1"></i>Ocultar filtros'
+      : '<i class="bi bi-funnel me-1"></i>Mais filtros';
+  }
+
+  // ── Limpar filtros ────────────────────────────────
+  function limparFiltros() {
+    document.getElementById('f-inicio').value = inicioMesISO();
+    document.getElementById('f-fim').value = dataHojeISO();
+    document.getElementById('f-status').value = '';
+    document.getElementById('f-forma').value = '';
+    document.getElementById('f-vendedor').value = '';
+    document.getElementById('f-cliente-text').value = '';
+    document.getElementById('f-cliente-id').value = '';
+    document.getElementById('f-cliente-drop').style.display = 'none';
+    carregar();
+  }
+
+  // ── Carregar / filtrar ────────────────────────────
+  async function carregar() {
+    const params = {
+      data_inicio: document.getElementById('f-inicio').value,
+      data_fim: document.getElementById('f-fim').value,
+      limite: 500,
+    };
+    const status    = document.getElementById('f-status').value;
+    const forma     = document.getElementById('f-forma').value;
+    const vendedor  = document.getElementById('f-vendedor').value;
+    const clienteId = document.getElementById('f-cliente-id').value;
+
+    if (status)    params.status          = status;
+    if (forma)     params.forma_pagamento = forma;
+    if (vendedor)  params.vendedor_id     = vendedor;
+    if (clienteId) params.cliente_id      = clienteId;
+
+    const tb = document.getElementById('tabela-vendas');
+    tb.innerHTML = '<tr><td colspan="8" class="text-center py-3 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Carregando...</td></tr>';
+
+    try {
+      const list = await api.vendas.listar(params);
+      listaVendas = list;
+
+      // Totalizador
+      const concluidas = list.filter(v => v.status === 'concluida');
+      const canceladas = list.filter(v => v.status === 'cancelada');
+      const fat = concluidas.reduce((s, v) => s + v.total, 0);
+      const ticket = concluidas.length ? fat / concluidas.length : 0;
+      document.getElementById('res-qtd').textContent    = concluidas.length;
+      document.getElementById('res-fat').textContent    = fmtMoeda(fat);
+      document.getElementById('res-cancel').textContent = canceladas.length;
+      document.getElementById('res-ticket').textContent = fmtMoeda(ticket);
+      document.getElementById('resumo-filtro').classList.remove('d-none');
+
+      tb.innerHTML = list.length === 0
+        ? '<tr><td colspan="8" class="text-center py-3 text-muted">Nenhuma venda encontrada com esses filtros</td></tr>'
+        : list.map(v => `<tr class="${v.status === 'cancelada' ? 'table-secondary text-decoration-line-through' : ''}">
+            <td>
+              <div class="venda-num">${v.numero_venda}</div>
+              <div class="venda-info d-md-none">
+                ${fmtData(v.criado_em)}${v.vendedor ? ' · ' + v.vendedor.nome : ''}${v.cliente ? '<br><span class="venda-cliente">' + v.cliente.nome + '</span>' : ''}
+              </div>
+              <div class="d-md-none mt-1">
+                <span class="badge me-1" style="background:${corPagamento(v.forma_pagamento)};font-size:.65rem">${nomePagamento(v.forma_pagamento)}</span>${badgeStatus(v.status)}
+              </div>
+            </td>
+            <td class="d-none d-md-table-cell" style="font-size:.82rem">${fmtData(v.criado_em)}</td>
+            <td class="d-none d-md-table-cell">${v.cliente ? v.cliente.nome : '<span class="text-muted small">-</span>'}</td>
+            <td class="d-none d-md-table-cell">${v.vendedor ? v.vendedor.nome : '-'}</td>
+            <td class="d-none d-md-table-cell"><span class="badge" style="background:${corPagamento(v.forma_pagamento)};font-size:.72rem">${nomePagamento(v.forma_pagamento)}</span></td>
+            <td class="text-end fw-bold align-middle">${fmtMoeda(v.total)}</td>
+            <td class="d-none d-md-table-cell">${badgeStatus(v.status)}</td>
+            <td class="text-center align-middle">
+              <div class="d-flex gap-1 justify-content-center">
+                <button class="btn btn-sm btn-outline-primary btn-acao" onclick="verDetalhe(${v.id})" title="Ver detalhe"><i class="bi bi-eye"></i></button>
+                <button class="btn btn-sm btn-outline-secondary btn-acao" onclick="imprimirPorId(${v.id})" title="Imprimir comprovante"><i class="bi bi-printer"></i></button>
+              </div>
+            </td>
+          </tr>`).join('');
+    } catch(e) {
+      tb.innerHTML = '<tr><td colspan="8" class="text-center py-3 text-danger">Erro ao carregar vendas</td></tr>';
+    }
+  }
+
+  function corPagamento(f) {
+    return { dinheiro:'#198754', debito:'#0d6efd', credito:'#6610f2',
+             pix:'#20c997', boleto:'#fd7e14', fiado:'#dc3545' }[f] || '#6c757d';
+  }
+
+  // ── Detalhe ───────────────────────────────────────
+  async function verDetalhe(id) {
+    const v = await api.vendas.buscar(id);
+    vendaSelecionada = v;
+    document.getElementById('det-numero').textContent = v.numero_venda;
+    document.getElementById('btn-cancelar').style.display = v.status === 'concluida' ? '' : 'none';
+    document.getElementById('det-body').innerHTML = `
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+          <small class="text-muted d-block">Data</small>${fmtData(v.criado_em)}
+        </div>
+        <div class="col-6 col-md-3">
+          <small class="text-muted d-block">Vendedor</small>${v.vendedor ? v.vendedor.nome : '-'}
+        </div>
+        <div class="col-6 col-md-3">
+          <small class="text-muted d-block">Cliente</small>${v.cliente ? v.cliente.nome : '<span class="text-muted">-</span>'}
+        </div>
+        <div class="col-6 col-md-3">
+          <small class="text-muted d-block">Pagamento</small>
+          ${(() => {
+            let pags = [];
+            if (v.pagamentos_json) {
+              try { pags = JSON.parse(v.pagamentos_json); } catch(_) {}
+            }
+            if (pags.length > 0) {
+              return pags.map(p => {
+                const repassar = p.taxa_modo === 'repassar' && p.taxa_valor > 0;
+                const valorExib = repassar ? p.valor + p.taxa_valor : p.valor;
+                const taxaHtml = repassar
+                  ? `<div style="font-size:.7rem;color:#1565c0">↳ Taxa ${p.taxa_pct}%: +${fmtMoeda(p.taxa_valor)}</div>`
+                  : (p.taxa_modo === 'informativo' && p.taxa_valor > 0
+                      ? `<div style="font-size:.7rem;color:#e65100">↳ Custo taxa: ${fmtMoeda(p.taxa_valor)}</div>`
+                      : '');
+                const parc = p.parcelas > 1 ? ` <small>(${p.parcelas}x)</small>` : '';
+                return `<div class="mb-1">
+                  <div class="d-flex justify-content-between align-items-center gap-2" style="font-size:.82rem">
+                    <span><span class="badge" style="background:${corPagamento(p.forma)};font-size:.68rem">${nomePagamento(p.forma)}</span>${parc}</span>
+                    <span class="fw-semibold">${fmtMoeda(valorExib)}</span>
+                  </div>
+                  ${taxaHtml}
+                </div>`;
+              }).join('');
+            }
+            const troco = v.troco > 0.005 ? `<div class="text-muted" style="font-size:.75rem">Troco: ${fmtMoeda(v.troco)}</div>` : '';
+            const parc  = v.parcelas > 1 ? ` <small>(${v.parcelas}x)</small>` : '';
+            return `<span class="badge" style="background:${corPagamento(v.forma_pagamento)}">${nomePagamento(v.forma_pagamento)}</span>${parc}${troco}`;
+          })()}
+        </div>
+      </div>
+      <table class="table table-sm table-bordered mb-3">
+        <thead class="table-light"><tr>
+          <th class="det-col-foto" style="width:44px"></th>
+          <th>Produto</th>
+          <th class="text-center">Qtd</th>
+          <th class="text-end det-col-unit">Unit.</th>
+          <th class="text-end">Subtotal</th>
+        </tr></thead>
+        <tbody>
+          ${v.itens.map(i => {
+            const unitHtml = i.desconto_item > 0
+              ? `<span class="text-muted text-decoration-line-through d-block" style="font-size:.75rem">${fmtMoeda(i.preco_unitario + i.desconto_item)}</span>
+                 <span class="text-danger fw-semibold">${fmtMoeda(i.preco_unitario)}</span>
+                 <small class="text-danger d-block" style="font-size:.7rem">-${fmtMoeda(i.desconto_item)}/un</small>`
+              : fmtMoeda(i.preco_unitario);
+            const unitMobile = i.desconto_item > 0
+              ? `<span class="det-unit-mobile text-danger">Un: ${fmtMoeda(i.preco_unitario)} <s class="text-muted">${fmtMoeda(i.preco_unitario + i.desconto_item)}</s></span>`
+              : `<span class="det-unit-mobile text-muted">Un: ${fmtMoeda(i.preco_unitario)}</span>`;
+            return `<tr>
+              <td class="py-1 det-col-foto">${i.produto && i.produto.foto_url
+                ? `<img src="${i.produto.foto_url}" style="width:36px;height:36px;object-fit:cover;border-radius:4px">`
+                : `<div style="width:36px;height:36px;background:#f0f0f0;border-radius:4px;display:flex;align-items:center;justify-content:center"><i class="bi bi-image text-muted" style="font-size:.9rem"></i></div>`}</td>
+              <td>${i.produto ? i.produto.nome : i.produto_id}${i.variacao ? ` <span class="badge bg-secondary" style="font-size:.65rem">${i.variacao.nome}</span>` : ''}${unitMobile}</td>
+              <td class="text-center">${i.quantidade} ${i.produto ? i.produto.unidade : ''}</td>
+              <td class="text-end det-col-unit">${unitHtml}</td>
+              <td class="text-end">${fmtMoeda(i.subtotal)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      ${(() => {
+        const lucroVenda = v.itens.reduce((s, i) => {
+          const custo = (i.produto ? (i.produto.preco_custo || 0) : 0);
+          return s + (i.preco_unitario - custo) * i.quantidade;
+        }, 0);
+        const margemVenda = v.total > 0 ? lucroVenda / v.total * 100 : 0;
+        // v.desconto é o valor líquido: positivo = desconto, negativo = acréscimo líquido
+        const netDesc = v.desconto || 0;
+        const temAjuste = Math.abs(netDesc) > 0.005;
+        let linhasAjuste = '';
+        if (temAjuste) {
+          linhasAjuste += `<div class="text-muted small">Subtotal: ${fmtMoeda(v.subtotal)}</div>`;
+          if (netDesc > 0) {
+            linhasAjuste += `<div class="text-danger small"><i class="bi bi-dash-circle me-1"></i>Desconto: -${fmtMoeda(netDesc)}</div>`;
+          } else {
+            linhasAjuste += `<div class="text-primary small"><i class="bi bi-plus-circle me-1"></i>Acréscimo: +${fmtMoeda(Math.abs(netDesc))}</div>`;
+          }
+        }
+        const totalItensVenda = v.itens.reduce((s, i) => s + (i.quantidade || 0), 0);
+        return `<div class="d-flex justify-content-end gap-3 align-items-end flex-wrap mt-2 det-total-row">
+          <div class="text-end">
+            <div class="text-muted small">Total de itens: <strong>${totalItensVenda} ${totalItensVenda === 1 ? 'item' : 'itens'}</strong></div>
+            ${linhasAjuste}
+            <div class="fs-5 fw-bold">Total: ${fmtMoeda(v.total)}</div>
+            ${v.forma_pagamento === 'dinheiro' && v.troco > 0 ? `<div class="text-muted small">Troco: ${fmtMoeda(v.troco)}</div>` : ''}
+          </div>
+          ${v.status === 'concluida' ? `<div class="text-end border-start ps-3 det-lucro-box">
+            <div class="text-muted small mb-1">Lucro da Venda</div>
+            <div class="fw-bold fs-6 ${lucroVenda >= 0 ? 'text-success' : 'text-danger'}">${fmtMoeda(lucroVenda)}</div>
+            <div class="text-muted" style="font-size:.78rem">Margem: ${margemVenda.toFixed(1)}%</div>
+          </div>` : ''}
+        </div>`;
+      })()}
+      ${v.observacoes ? `<div class="alert alert-light mt-3 mb-0 py-2"><small><i class="bi bi-chat-left-text me-1"></i>${v.observacoes}</small></div>` : ''}
+      ${v.status === 'cancelada' ? `<div class="alert alert-danger mt-3 mb-0 py-2"><small>Cancelada em ${fmtData(v.cancelado_em)}</small></div>` : ''}
+    `;
+    modalDetalhe.show();
+  }
+
+  // ── Imprimir ──────────────────────────────────────
+  function _gerarTextoVenda(venda) {
+    const W   = 42; // 80mm térmica Bematech = 42 colunas (fonte padrão)
+    const sep = '='.repeat(W);
+    const lin = '-'.repeat(W);
+
+    function center(txt) {
+      const s = String(txt).substring(0, W);
+      const pad = Math.floor((W - s.length) / 2);
+      return ' '.repeat(Math.max(0, pad)) + s;
+    }
+    function lr(label, val) {
+      const l = ' ' + String(label), v = String(val);
+      const sp = W - l.length - v.length;
+      return sp > 0 ? l + ' '.repeat(sp) + v : l + ' ' + v;
+    }
+    function fmtDataCurta(dt) {
+      if (!dt) return '';
+      const d = new Date(dt);
+      const dd = String(d.getDate()).padStart(2,'0');
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const aa = String(d.getFullYear()).slice(-2);
+      const hh = String(d.getHours()).padStart(2,'0');
+      const mi = String(d.getMinutes()).padStart(2,'0');
+      return dd+'/'+mm+'/'+aa+' '+hh+':'+mi;
+    }
+    function itemLinha(nome, qtd, unid, unitario, total) {
+      const tot = fmtMoeda(total);
+      const mid = String(qtd) + unid + ' ' + fmtMoeda(unitario);
+      const nomeMax = W - mid.length - tot.length - 3;
+      const n = (' ' + nome).substring(0, Math.max(1, nomeMax));
+      const sp = W - n.length - mid.length - tot.length - 1; // -1 pelo espaço entre mid e tot
+      return n + ' '.repeat(Math.max(1, sp)) + mid + ' ' + tot;
+    }
+
+    const cfg      = window.configLoja || {};
+    const nomeLoja = cfg.nome_empresa ? cfg.nome_empresa.toUpperCase() : 'PDV';
+    const rodape   = cfg.rodape && cfg.rodape.trim() ? cfg.rodape.trim() : 'Obrigado pela compra!';
+
+    function fmtDC(dt) {
+      if (!dt) return '';
+      const d = new Date(dt);
+      return String(d.getDate()).padStart(2,'0') + '/' +
+             String(d.getMonth()+1).padStart(2,'0') + '/' +
+             String(d.getFullYear()).slice(-2) + ' ' +
+             String(d.getHours()).padStart(2,'0') + ':' +
+             String(d.getMinutes()).padStart(2,'0');
+    }
+
+    let t = sep + '\n';
+    t += center(nomeLoja) + '\n';
+    if (cfg.cnpj)      t += center('CNPJ: ' + cfg.cnpj) + '\n';
+    if (cfg.telefone)  t += center('Tel: ' + cfg.telefone) + '\n';
+    if (cfg.endereco)  t += center(cfg.endereco.substring(0, W)) + '\n';
+    if (cfg.cidade_uf) t += center(cfg.cidade_uf) + '\n';
+    t += lin + '\n';
+
+    const nv = ' ' + venda.numero_venda, dv = fmtDC(venda.criado_em);
+    t += nv + ' '.repeat(Math.max(1, W - nv.length - dv.length)) + dv + '\n';
+    if (venda.vendedor) t += (' Vend: ' + venda.vendedor.nome).substring(0, W) + '\n';
+    if (venda.cliente)  t += (' Cli:  ' + venda.cliente.nome).substring(0, W)  + '\n';
+    t += lin + '\n';
+
+    venda.itens.forEach(item => {
+      const nome    = item.produto ? item.produto.nome : 'Produto';
+      const unidade = item.produto ? (item.produto.unidade || 'UN') : 'UN';
+      const varNome = item.variacao ? item.variacao.nome : null;
+      t += (' ' + nome + (varNome ? ' [' + varNome + ']' : '')).substring(0, W) + '\n';
+      const det = '  ' + item.quantidade + ' ' + unidade + ' x ' + fmtMoeda(item.preco_unitario);
+      t += lr(det, fmtMoeda(item.subtotal)) + '\n';
+      if (item.desconto_item > 0) {
+        const precoOrig = item.preco_unitario + item.desconto_item;
+        t += ('  * desc -' + fmtMoeda(item.desconto_item) + '/un (orig: ' + fmtMoeda(precoOrig) + ')').substring(0, W) + '\n';
+      }
+    });
+
+    t += sep + '\n';
+    if (venda.desconto > 0) {
+      t += lr('Subtotal:', fmtMoeda(venda.subtotal)) + '\n';
+      t += lr('Desconto:', '-' + fmtMoeda(venda.desconto)) + '\n';
+    } else if (venda.desconto < 0) {
+      t += lr('Subtotal:', fmtMoeda(venda.subtotal)) + '\n';
+      t += lr('Acrescimo:', '+' + fmtMoeda(Math.abs(venda.desconto))) + '\n';
+    }
+    t += lr('TOTAL:', fmtMoeda(venda.total)) + '\n';
+    t += lin + '\n';
+
+    let pags = [];
+    if (venda.pagamentos_json) { try { pags = JSON.parse(venda.pagamentos_json); } catch(_) {} }
+    if (pags && pags.length > 0) {
+      pags.forEach(p => {
+        const repassar = p.taxa_modo === 'repassar' && p.taxa_valor > 0;
+        const valorExib = repassar ? p.valor + p.taxa_valor : p.valor;
+        t += lr(nomePagamento(p.forma) + (p.parcelas > 1 ? ' (' + p.parcelas + 'x)' : '') + ':', fmtMoeda(valorExib)) + '\n';
+        if (repassar) t += ('  * Taxa ' + p.taxa_pct + '%: +' + fmtMoeda(p.taxa_valor)).substring(0, W) + '\n';
+      });
+      const troco = Math.max(0, pags.reduce((s,p) => s+p.valor, 0) - venda.total);
+      if (troco > 0.005) t += lr('Troco:', fmtMoeda(troco)) + '\n';
+    } else {
+      const parc = venda.parcelas > 1 ? ' (' + venda.parcelas + 'x)' : '';
+      t += lr(nomePagamento(venda.forma_pagamento) + parc + ':', fmtMoeda(venda.total)) + '\n';
+      if (venda.troco > 0.005) t += lr('Troco:', fmtMoeda(venda.troco)) + '\n';
+    }
+
+    if (venda.observacoes) { t += lin + '\n'; t += (' OBS: ' + venda.observacoes).substring(0, W) + '\n'; }
+    t += sep + '\n';
+    t += center(rodape) + '\n';
+    t += sep;
+    return t;
+  }
+
+  async function _abrirJanelaImpressao(venda) {
+    const tipo  = localStorage.getItem('impressora_tipo') || 'sistema';
+    const texto = _gerarTextoVenda(venda);
+
+    if (tipo === 'wifi') {
+      const ip = localStorage.getItem('impressora_ip') || '';
+      if (!ip) { showToast('Configure o IP da impressora em Impressora (menu lateral)', 'warning'); return; }
+      try {
+        await TcpPrint.imprimir(texto);
+        showToast('Impresso com sucesso!', 'success');
+      } catch(e) { showToast('Erro ao imprimir: ' + e.message, 'error'); }
+    } else {
+      const printArea = document.getElementById('print-area');
+      printArea.innerHTML = `<pre style="font-family:monospace;font-size:12px;white-space:pre-wrap;padding:0;margin:0">${texto}</pre>`;
+      window.print();
+      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
+    }
+  }
+
+  function imprimirVenda() {
+    if (vendaSelecionada) _abrirJanelaImpressao(vendaSelecionada);
+  }
+
+  async function compartilharVenda() {
+    if (!vendaSelecionada) return;
+    const v = vendaSelecionada;
+    let pags = [];
+    if (v.pagamentos_json) { try { pags = JSON.parse(v.pagamentos_json); } catch(_) {} }
+
+    const dados = {
+      tipo:     'venda',
+      numero:   v.numero_venda,
+      vendedor: v.vendedor ? v.vendedor.nome : null,
+      cliente:  v.cliente  ? v.cliente.nome  : null,
+      itens: v.itens.map(i => ({
+        nome:           (i.produto ? i.produto.nome : String(i.produto_id)) + (i.variacao ? ' [' + i.variacao.nome + ']' : ''),
+        foto_url:       i.produto ? (i.produto.foto_url || null) : null,
+        quantidade:     i.quantidade,
+        unidade:        i.produto ? (i.produto.unidade || 'UN') : 'UN',
+        preco_unitario: i.preco_unitario,
+        preco_original: i.desconto_item > 0 ? i.preco_unitario + i.desconto_item : null,
+        subtotal:       i.subtotal,
+      })),
+      total:      v.total,
+      subtotal:   v.subtotal || v.total,
+      desconto:   v.desconto || 0,
+      pagamentos: pags.length > 0 ? pags : [{ forma: v.forma_pagamento, valor: v.total, parcelas: v.parcelas || 1 }],
+      criado_em:  v.criado_em,
+    };
+
+    const btn = document.querySelector('#modalDetalhe .btn-outline-success');
+    await _compartilharComoImagem(dados, btn);
+  }
+
+  async function imprimirPorId(id) {
+    try {
+      const venda = await api.vendas.buscar(id);
+      await _abrirJanelaImpressao(venda);
+    } catch(e) { showToast('Erro ao carregar venda: ' + e.message, 'error'); }
+  }
+
+  // ── Imprimir Lista ────────────────────────────────
+  function imprimirLista() {
+    if (!listaVendas.length) { showToast('Nenhuma venda para imprimir', 'warning'); return; }
+    const cfg = window.configLoja || {};
+    const nomeLoja = cfg.nome_empresa ? cfg.nome_empresa.toUpperCase() : 'PDV';
+    const inicio = document.getElementById('f-inicio').value;
+    const fim    = document.getElementById('f-fim').value;
+
+    const concluidas = listaVendas.filter(v => v.status === 'concluida');
+    const canceladas = listaVendas.filter(v => v.status === 'cancelada');
+    const totalFat   = concluidas.reduce((s, v) => s + v.total, 0);
+    const ticket     = concluidas.length ? totalFat / concluidas.length : 0;
+
+    const rows = listaVendas.map(v => `
+      <tr class="${v.status === 'cancelada' ? 'tr-cancelada' : ''}">
+        <td>${v.numero_venda}</td>
+        <td>${fmtData(v.criado_em)}</td>
+        <td>${v.cliente ? v.cliente.nome : '-'}</td>
+        <td>${v.vendedor ? v.vendedor.nome : '-'}</td>
+        <td>${nomePagamento(v.forma_pagamento)}</td>
+        <td style="text-align:right">${fmtMoeda(v.total)}</td>
+        <td>${v.status === 'concluida' ? 'Concluída' : 'Cancelada'}</td>
+      </tr>`).join('');
+
+    document.getElementById('print-area').innerHTML = `
+      <div class="print-header">
+        <h4>${nomeLoja}</h4>
+        <p>HISTÓRICO DE VENDAS &mdash; ${inicio} a ${fim}</p>
+        <p>${concluidas.length} venda(s) concluída(s) &nbsp;|&nbsp; ${canceladas.length} cancelada(s) &nbsp;|&nbsp; Ticket médio: ${fmtMoeda(ticket)}</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Nº Venda</th><th>Data/Hora</th><th>Cliente</th>
+            <th>Vendedor</th><th>Pagamento</th><th style="text-align:right">Total</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+          <tr class="tr-total">
+            <td colspan="5">FATURAMENTO TOTAL (${concluidas.length} concluída${concluidas.length !== 1 ? 's' : ''})</td>
+            <td style="text-align:right">${fmtMoeda(totalFat)}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>`;
+    window.print();
+    setTimeout(() => { document.getElementById('print-area').innerHTML = ''; }, 1500);
+  }
+
+  // ── Exportar XLSX ─────────────────────────────────
+  function exportarXLSX() {
+    if (!listaVendas.length) { showToast('Nenhuma venda para exportar', 'warning'); return; }
+    const cfg      = window.configLoja || {};
+    const nomeLoja = cfg.nome_empresa || 'PDV';
+    const inicio   = document.getElementById('f-inicio').value;
+    const fim      = document.getElementById('f-fim').value;
+
+    const concluidas = listaVendas.filter(v => v.status === 'concluida');
+    const canceladas = listaVendas.filter(v => v.status === 'cancelada');
+    const totalFat   = concluidas.reduce((s, v) => s + v.total, 0);
+    const ticket     = concluidas.length ? totalFat / concluidas.length : 0;
+
+    // Linhas de dados
+    const dataRows = listaVendas.map(v => [
+      v.numero_venda,
+      fmtData(v.criado_em),
+      v.cliente  ? v.cliente.nome  : '',
+      v.vendedor ? v.vendedor.nome : '',
+      nomePagamento(v.forma_pagamento),
+      v.total,
+      v.status === 'concluida' ? 'Concluída' : 'Cancelada',
+    ]);
+
+    const aoa = [
+      [`${nomeLoja} — Histórico de Vendas`],
+      [`Período: ${inicio} a ${fim}`],
+      [`Concluídas: ${concluidas.length}   |   Canceladas: ${canceladas.length}   |   Ticket médio: ${fmtMoeda(ticket)}`],
+      [],
+      ['Nº Venda', 'Data/Hora', 'Cliente', 'Vendedor', 'Pagamento', 'Total (R$)', 'Status'],
+      ...dataRows,
+      [],
+      ['FATURAMENTO TOTAL', '', '', '', `${concluidas.length} venda(s)`, totalFat, ''],
+      ['TOTAL CANCELADAS',  '', '', '', `${canceladas.length} venda(s)`, canceladas.reduce((s,v)=>s+v.total,0), ''],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // Formata coluna F (índice 5) como moeda
+    const dataStart = 5; // linha 5 em 0-index = row 6 na planilha (header em row 5, index 4)
+    for (let i = 0; i < dataRows.length; i++) {
+      const ref = XLSX.utils.encode_cell({ r: dataStart + i, c: 5 });
+      if (ws[ref]) ws[ref].z = '#,##0.00';
+    }
+    // Totais
+    [aoa.length - 2, aoa.length - 1].forEach(r => {
+      const ref = XLSX.utils.encode_cell({ r, c: 5 });
+      if (ws[ref]) ws[ref].z = '#,##0.00';
+    });
+
+    ws['!cols'] = [
+      { wch: 12 }, { wch: 18 }, { wch: 26 },
+      { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 12 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Vendas');
+
+    const nome   = `historico-vendas_${inicio}_${fim}.xlsx`;
+    const wbout  = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob   = new Blob([wbout], { type: 'application/octet-stream' });
+
+    if (navigator.share && navigator.canShare) {
+      const file = new File([blob], nome, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: 'Histórico de Vendas' }).catch(() => _baixarBlob(blob, nome));
+        return;
+      }
+    }
+    _baixarBlob(blob, nome);
+  }
+
+  function _baixarBlob(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nome;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ── Cancelar ──────────────────────────────────────
+  async function cancelarVenda() {
+    if (!vendaSelecionada) return;
+    if (isAdmin()) {
+      _executarCancelamento();
+    } else {
+      // Não-admin: pede credenciais de administrador
+      document.getElementById('admin-nome-cancel').value = '';
+      document.getElementById('admin-senha-cancel').value = '';
+      new bootstrap.Modal(document.getElementById('modalSenhaAdmin')).show();
+      setTimeout(() => document.getElementById('admin-nome-cancel').focus(), 300);
+    }
+  }
+
+  async function confirmarCancelamentoAdmin() {
+    const nome  = document.getElementById('admin-nome-cancel').value.trim();
+    const senha = document.getElementById('admin-senha-cancel').value;
+    if (!nome || !senha) { showToast('Informe e-mail e senha do administrador', 'error'); return; }
+    const btn = document.getElementById('btn-autorizar-cancel');
+    btnLoading(btn, 'Verificando...');
+    try {
+      const adm = await api.vendedores.login(nome, senha);
+      if (!adm || !adm.is_admin) { showToast('Usuário não é administrador', 'error'); return; }
+      bootstrap.Modal.getInstance(document.getElementById('modalSenhaAdmin')).hide();
+      _executarCancelamento();
+    } catch(e) {
+      showToast('Credenciais incorretas ou usuário não encontrado', 'error');
+    } finally {
+      btnLoading(btn, false);
+    }
+  }
+
+  async function _executarCancelamento() {
+    if (!confirmDialog(`Cancelar a venda ${vendaSelecionada.numero_venda}? O estoque será devolvido.`)) return;
+    const vendedor = getVendedor();
+    try {
+      await api.vendas.cancelar(vendaSelecionada.id, vendedor.id);
+      modalDetalhe.hide();
+      showToast('Venda cancelada!', 'warning');
+      carregar();
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  init();
+</script>
+
+<div id="print-area"></div>
+
+<!-- Modal: Opções de compartilhamento (vendas) -->
+<div class="modal fade" id="modalOpcoesVendasShare" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title fw-bold"><i class="bi bi-share me-2"></i>Compartilhar comprovante</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body d-grid gap-2 py-3">
+        <button class="btn btn-success" onclick="_shareWhatsAppVendas()">
+          <i class="bi bi-whatsapp me-2"></i>WhatsApp
+        </button>
+        <button class="btn btn-outline-secondary" onclick="_shareCopiarVendas()">
+          <i class="bi bi-clipboard me-2"></i>Copiar texto
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Autorização de Administrador para Cancelamento -->
+<div class="modal fade" id="modalSenhaAdmin" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2" style="background:#dc3545;color:#fff">
+        <h6 class="modal-title fw-bold"><i class="bi bi-shield-lock me-2"></i>Autorização Necessária</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-3">
+          <i class="bi bi-info-circle me-1"></i>
+          Informe as credenciais de um <strong>administrador</strong> para cancelar esta venda.
+        </p>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">E-mail do administrador</label>
+          <input type="email" id="admin-nome-cancel" class="form-control form-control-sm" autocomplete="off" placeholder="email@exemplo.com">
+        </div>
+        <div class="mb-0">
+          <label class="form-label small fw-semibold">Senha</label>
+          <input type="password" id="admin-senha-cancel" class="form-control form-control-sm"
+            placeholder="••••••" onkeydown="if(event.key==='Enter') confirmarCancelamentoAdmin()">
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-danger btn-sm fw-semibold" id="btn-autorizar-cancel" onclick="confirmarCancelamentoAdmin()">
+          <i class="bi bi-shield-check me-1"></i>Autorizar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

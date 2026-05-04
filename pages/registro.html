@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Criar Conta Grátis — FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root { --primary: #2a9e5f; --primary-dark: #1e7d49; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background: #0a1628;
+      background-image:
+        radial-gradient(ellipse 70% 60% at 15% 50%, rgba(30,80,160,.55) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 60% at 85% 50%, rgba(20,60,130,.35) 0%, transparent 70%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem 1rem; }
+
+    .registro-card {
+      max-width: 480px; margin: 0 auto;
+      background: #0f1d30;
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 18px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.6);
+      padding: 2.5rem 2.4rem;
+    }
+    body.modo-login .registro-card { max-width: 400px; }
+
+    /* ── Header (logo + tagline + badge) ── */
+    .registro-header { text-align: center; margin-bottom: 1.5rem; }
+    .registro-header .logo-wrap {
+      display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;
+    }
+    .registro-header .logo-wrap img {
+      height: 150px; width: auto;     }
+    .registro-header .tagline {
+      color: rgba(255,255,255,.55); font-size: .9rem; margin-bottom: .7rem;
+    }
+    .trial-badge {
+      background: #2a9e5f; color: #fff;
+      font-size: .75rem; font-weight: 700;
+      padding: .3rem .9rem; border-radius: 20px;
+      display: inline-block;
+    }
+    body.modo-login .registro-header { display: none; }
+
+    /* ── Form labels e controls (dark) ── */
+    .form-label { color: #fff; font-weight: 600; font-size: .88rem; margin-bottom: .35rem; }
+    .form-control {
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      color: #fff; border-radius: 10px; padding: .65rem 1rem;
+    }
+    .form-control::placeholder { color: rgba(255,255,255,.25); }
+    .form-control:focus {
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.25);
+      color: #fff; box-shadow: none;
+    }
+    .form-text { color: rgba(255,255,255,.4); font-size: .78rem; }
+    .input-group-text {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.12);
+      color: rgba(255,255,255,.6);
+    }
+    .btn-outline-secondary {
+      border-color: rgba(255,255,255,.12); color: rgba(255,255,255,.7);
+      background: rgba(255,255,255,.04);
+    }
+    .btn-outline-secondary:hover {
+      background: rgba(255,255,255,.10); color: #fff; border-color: rgba(255,255,255,.25);
+    }
+
+    .step-header { font-size: 1.2rem; font-weight: 700; color: #fff; margin-bottom: 1rem; }
+    .step-header i { color: #2a9e5f !important; }
+
+    /* ── Botão verde primário ── */
+    .btn-pdv {
+      background: var(--primary); color: #fff; border: none;
+      border-radius: 10px; padding: .78rem;
+      font-weight: 700; transition: background .15s;
+    }
+    .btn-pdv:hover { background: var(--primary-dark); color: #fff; }
+
+    /* ── Plano cards (dark) ── */
+    .plano-card {
+      border: 2px solid rgba(255,255,255,.10); border-radius: 10px; padding: .75rem 1rem;
+      cursor: pointer; transition: all .15s; text-align: center;
+      background: rgba(255,255,255,.04);
+    }
+    .plano-card:hover, .plano-card.ativo {
+      border-color: var(--primary); background: rgba(42,158,95,.12);
+    }
+    .plano-card .preco { font-size: 1.3rem; font-weight: 800; color: #2db88a; }
+    .plano-card .nome  { font-size: .8rem; font-weight: 700; color: #fff; }
+    .plano-card .info  { font-size: .72rem; color: rgba(255,255,255,.5); }
+
+    .preview-url {
+      background: rgba(255,255,255,.05); border-radius: 8px; padding: .5rem .9rem;
+      font-size: .85rem; color: rgba(255,255,255,.6);
+      border: 1px solid rgba(255,255,255,.1);
+    }
+    .preview-url strong { color: #2db88a; }
+
+    .text-muted, .small.text-muted { color: rgba(255,255,255,.5) !important; }
+
+    /* Link "Já tem conta? Entrar" / "Crie agora" */
+    .link-toggle {
+      text-align: center; margin-top: 1rem;
+      font-size: .88rem; color: rgba(255,255,255,.5);
+    }
+    .link-toggle a { color: #2db88a; font-weight: 700; text-decoration: none; }
+    .link-toggle a:hover { text-decoration: underline; }
+
+    /* ── Seção de login (logo grande) ── */
+    #step-login .login-logo-big {
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1rem;
+    }
+    #step-login .login-logo-big img {
+      height: 170px; width: auto;     }
+    #step-login .login-tagline {
+      text-align: center; color: rgba(255,255,255,.55);
+      font-size: .85rem; margin-bottom: .8rem;
+    }
+    #step-login .login-trial-badge {
+      display: flex; justify-content: center; margin-bottom: 1.2rem;
+    }
+    #step-login .login-trial-badge span {
+      background: #2a9e5f; color: #fff;
+      font-size: .75rem; font-weight: 700;
+      padding: .3rem .9rem; border-radius: 20px;
+    }
+    #step-login .login-subtitle {
+      text-align: center; color: rgba(255,255,255,.5); font-size: .9rem; margin-bottom: 1.8rem;
+    }
+    #step-login .btn-login-dark {
+      background: #2a9e5f; color: #fff; border: none;
+      border-radius: 10px; width: 100%; padding: .78rem;
+      font-weight: 700; font-size: 1rem; margin-top: .5rem;
+      transition: background .15s;
+    }
+    #step-login .btn-login-dark:hover { background: #1e7d49; color: #fff; }
+    #step-login .login-criar-conta {
+      text-align: center; margin-top: 1.3rem;
+      font-size: .88rem; color: rgba(255,255,255,.5);
+    }
+    #step-login .login-criar-conta a {
+      color: #2db88a; font-weight: 700; text-decoration: none;
+    }
+    #step-login .login-criar-conta a:hover { text-decoration: underline; }
+
+    .copyright-dark {
+      text-align: center; color: rgba(255,255,255,.25);
+      font-size: .75rem; margin-top: 1.3rem;
+    }
+
+    /* Sucesso (mantém parte clara dentro do card escuro) */
+    #step-sucesso h4 { color: #fff; }
+    #step-sucesso p { color: rgba(255,255,255,.6); }
+    #step-sucesso .alert-success {
+      background: rgba(42,158,95,.15); color: #2db88a;
+      border: 1px solid rgba(42,158,95,.35);
+    }
+  </style>
+</head>
+<body class="py-4 px-3">
+<div class="container">
+  <div class="registro-card">
+
+    <!-- Header -->
+    <div class="registro-header">
+      <div class="logo-wrap">
+        <img src="/images/logo-fastpos.png" alt="FastPOS">
+      </div>
+      <div class="tagline">Crie sua conta grátis — sem cartão de crédito</div>
+      <span class="trial-badge">30 dias grátis · até 5 usuários</span>
+    </div>
+
+    <!-- ── Formulário de registro ── -->
+    <div id="step-form">
+      <div class="step-header mb-3"><i class="bi bi-building me-2 text-success"></i>Dados da sua empresa</div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold small">Nome da empresa *</label>
+        <input type="text" id="r-nome" class="form-control" placeholder="Ex: Padaria do João"
+               oninput="sugerirSubdominio()">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold small">E-mail *</label>
+        <input type="email" id="r-email" class="form-control" placeholder="contato@suaempresa.com.br">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold small d-flex justify-content-between">
+          Endereço do sistema (subdomínio) *
+          <span class="text-muted fw-normal" style="font-size:.72rem">3–30 letras, números ou hífen</span>
+        </label>
+        <div class="input-group">
+          <input type="text" id="r-subdominio" class="form-control fw-semibold"
+                 placeholder="padariasjoao" oninput="validarSubdominio()" maxlength="30"
+                 style="text-transform:lowercase">
+          <span class="input-group-text text-muted" style="font-size:.8rem">.fastpos.com.br</span>
+        </div>
+        <div id="sub-feedback" class="mt-1" style="font-size:.78rem"></div>
+        <!-- Preview da URL -->
+        <div class="preview-url mt-2" id="preview-url" style="display:none">
+          Seu sistema ficará em: <strong id="preview-sub">-</strong>.fastpos.com.br
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold small">Senha de acesso *</label>
+        <div class="input-group">
+          <input type="password" id="r-senha" class="form-control" placeholder="Mínimo 6 caracteres">
+          <button class="btn btn-outline-secondary" type="button" onclick="toggleSenha()">
+            <i class="bi bi-eye" id="ico-olho"></i>
+          </button>
+        </div>
+        <div class="form-text">Essa senha é para o painel master da empresa (não para os caixas).</div>
+      </div>
+
+      <!-- Planos -->
+      <div class="mb-3">
+        <label class="form-label fw-semibold small">Plano após o trial</label>
+        <div id="grade-planos" class="row g-2">
+          <div class="col-12 text-center text-muted small py-2">
+            <div class="spinner-border spinner-border-sm"></div> Carregando planos...
+          </div>
+        </div>
+        <div class="form-text">Durante os 30 dias de trial, você tem acesso completo com até 5 usuários.</div>
+      </div>
+
+      <!-- Erro -->
+      <div id="r-erro" class="alert alert-danger py-2 small mb-3" style="display:none"></div>
+
+      <button class="btn btn-pdv w-100 fw-bold" onclick="registrar()">
+        <i class="bi bi-rocket-takeoff me-2"></i>Criar minha conta grátis
+      </button>
+
+      <div class="link-toggle">
+        Já tem conta? <a href="/login-app">Entrar</a>
+      </div>
+    </div>
+
+    <!-- ── Login empresa ── -->
+    <div id="step-login" style="display:none">
+      <div class="login-logo-big">
+        <img src="/images/logo-fastpos.png" alt="FastPOS">
+      </div>
+      <div class="login-tagline">Crie sua conta grátis — sem cartão de crédito</div>
+      <div class="login-trial-badge">
+        <span>30 dias grátis · até 5 usuários</span>
+      </div>
+      <div class="login-subtitle">Faça login para continuar</div>
+
+      <div class="mb-3">
+        <label class="form-label">E-mail</label>
+        <input type="email" id="l-email" class="form-control" placeholder="seu@email.com">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Senha</label>
+        <input type="password" id="l-senha" class="form-control"
+               placeholder="••••••••" onkeydown="if(event.key==='Enter') loginEmpresa()">
+      </div>
+
+      <div id="l-erro" class="alert alert-danger py-2 small mb-3" style="display:none"></div>
+
+      <button class="btn-login-dark" onclick="loginEmpresa()">
+        <i class="bi bi-box-arrow-in-right me-1"></i> Entrar
+      </button>
+
+      <div class="login-criar-conta">
+        Ainda não tem conta? <a href="https://fastpos.com.br/registro">Crie agora</a>
+      </div>
+    </div>
+
+    <p class="copyright-dark">FastPOS © 2026</p>
+
+    <!-- ── Sucesso (aguardando verificação) ── -->
+    <div id="step-sucesso" style="display:none">
+      <div class="text-center">
+        <i class="bi bi-envelope-check-fill text-success" style="font-size:4rem"></i>
+        <h4 class="mt-3 fw-bold">Verifique seu e-mail!</h4>
+        <p class="small mt-2" style="color:rgba(255,255,255,.65);line-height:1.6">
+          Enviamos um link de confirmação para<br>
+          <strong id="suc-email" style="color:#fff"></strong>
+        </p>
+        <p class="small" style="color:rgba(255,255,255,.45)">
+          Clique no link para ativar sua conta e começar o trial de 30 dias.
+        </p>
+        <div class="mt-3">
+          <button id="btn-reenviar" class="btn btn-outline-light btn-sm" onclick="reenviarVerificacao()" disabled>
+            <i class="bi bi-envelope me-1"></i>Reenviar e-mail
+            <span id="reenviar-countdown"> (60s)</span>
+          </button>
+        </div>
+        <p class="small mt-2" style="color:rgba(255,255,255,.3)">
+          Não recebeu? Verifique o spam ou aguarde e reenvie.
+        </p>
+        <div class="mt-3">
+          <a href="#" onclick="voltarParaCadastro()" style="color:rgba(255,255,255,.4);font-size:.82rem;text-decoration:none;">
+            <i class="bi bi-arrow-left me-1"></i>Voltar ao cadastro
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /card -->
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const BASE = window.location.origin;
+let planoSelecionado = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  await carregarPlanos();
+  const params = new URLSearchParams(location.search);
+  if (location.hash === '#login' || params.get('login') === '1') mostrarLogin();
+});
+
+async function carregarPlanos() {
+  try {
+    const planos = await fetch(`${BASE}/api/empresas/planos`).then(r => r.json());
+    const pagos  = planos.filter(p => p.preco_mensal > 0);
+    const grade  = document.getElementById('grade-planos');
+    grade.innerHTML = pagos.map(p => `
+      <div class="col-6 col-sm-3">
+        <div class="plano-card" onclick="selecionarPlano(${p.id}, this)" data-id="${p.id}">
+          <div class="nome">${p.nome}</div>
+          <div class="preco">R$ ${p.preco_mensal.toFixed(0)}<small style="font-size:.6rem">/mês</small></div>
+          <div class="info">${p.max_usuarios === -1 ? 'Ilimitado' : 'até ' + p.max_usuarios} usuários</div>
+        </div>
+      </div>`).join('');
+    // Seleciona Padrão por padrão
+    const padrao = pagos.find(p => p.nome === 'Padrão') || pagos[0];
+    if (padrao) {
+      const el = document.querySelector(`.plano-card[data-id="${padrao.id}"]`);
+      if (el) selecionarPlano(padrao.id, el);
+    }
+  } catch(_) {
+    document.getElementById('grade-planos').innerHTML =
+      '<div class="col-12 text-muted small">Não foi possível carregar os planos.</div>';
+  }
+}
+
+function selecionarPlano(id, el) {
+  planoSelecionado = id;
+  document.querySelectorAll('.plano-card').forEach(c => c.classList.remove('ativo'));
+  el.classList.add('ativo');
+}
+
+// ── Subdomínio ────────────────────────────────────────────────────────────────
+function sugerirSubdominio() {
+  const nome = document.getElementById('r-nome').value;
+  const sub  = nome.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 30);
+  document.getElementById('r-subdominio').value = sub;
+  validarSubdominio();
+}
+
+function validarSubdominio() {
+  const sub = document.getElementById('r-subdominio').value.toLowerCase().trim();
+  const fb  = document.getElementById('sub-feedback');
+  const prev = document.getElementById('preview-url');
+  const prevSub = document.getElementById('preview-sub');
+
+  if (!sub) { fb.textContent = ''; prev.style.display = 'none'; return; }
+
+  if (!/^[a-z0-9][a-z0-9\-]{2,29}$/.test(sub)) {
+    fb.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Inválido — use 3 a 30 letras minúsculas, números ou hífen.</span>';
+    prev.style.display = 'none';
+  } else {
+    fb.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Disponível para verificação</span>';
+    prev.style.display = '';
+    prevSub.textContent = sub;
+  }
+  document.getElementById('r-subdominio').value = sub;
+}
+
+function toggleSenha() {
+  const inp = document.getElementById('r-senha');
+  const ico = document.getElementById('ico-olho');
+  if (inp.type === 'password') { inp.type = 'text'; ico.className = 'bi bi-eye-slash'; }
+  else { inp.type = 'password'; ico.className = 'bi bi-eye'; }
+}
+
+// ── Registro ──────────────────────────────────────────────────────────────────
+async function registrar() {
+  const nome      = document.getElementById('r-nome').value.trim();
+  const email     = document.getElementById('r-email').value.trim();
+  const subdominio = document.getElementById('r-subdominio').value.trim().toLowerCase();
+  const senha     = document.getElementById('r-senha').value;
+  const erroEl    = document.getElementById('r-erro');
+
+  erroEl.style.display = 'none';
+
+  if (!nome || !email || !subdominio || !senha) {
+    erroEl.textContent = 'Preencha todos os campos obrigatórios.';
+    erroEl.style.display = '';
+    return;
+  }
+
+  const btn = event.currentTarget;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Criando conta...';
+
+  try {
+    const res = await fetch(`${BASE}/api/empresas/registro`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, email, subdominio, senha }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro ao criar conta');
+
+    // Sucesso — aguardando verificação de e-mail
+    document.getElementById('step-form').style.display = 'none';
+    document.getElementById('step-sucesso').style.display = '';
+    document.getElementById('suc-email').textContent = email;
+    _iniciarCountdownReenvio();
+
+  } catch(e) {
+    erroEl.textContent = e.message;
+    erroEl.style.display = '';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-rocket-takeoff me-2"></i>Criar minha conta grátis';
+  }
+}
+
+// ── Reenviar verificação ──────────────────────────────────────────────────────
+let _emailParaReenvio = '';
+
+function voltarParaCadastro() {
+  document.getElementById('step-sucesso').style.display = 'none';
+  document.getElementById('step-form').style.display = '';
+}
+
+function _iniciarCountdownReenvio() {
+  _emailParaReenvio = document.getElementById('suc-email').textContent;
+  let seg = 60;
+  const btn = document.getElementById('btn-reenviar');
+  const cd  = document.getElementById('reenviar-countdown');
+  btn.disabled = true;
+  const iv = setInterval(() => {
+    seg--;
+    cd.textContent = ` (${seg}s)`;
+    if (seg <= 0) {
+      clearInterval(iv);
+      btn.disabled = false;
+      cd.textContent = '';
+    }
+  }, 1000);
+}
+
+async function reenviarVerificacao() {
+  const btn = document.getElementById('btn-reenviar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
+  try {
+    const res = await fetch(`${BASE}/api/empresas/reenviar-verificacao`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: _emailParaReenvio }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro ao reenviar');
+    btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Enviado!';
+    setTimeout(() => {
+      btn.innerHTML = '<i class="bi bi-envelope me-1"></i>Reenviar e-mail';
+      _iniciarCountdownReenvio();
+    }, 2000);
+  } catch(e) {
+    btn.innerHTML = '<i class="bi bi-envelope me-1"></i>Reenviar e-mail';
+    btn.disabled = false;
+    alert(e.message);
+  }
+}
+
+// ── Login empresa ─────────────────────────────────────────────────────────────
+async function loginEmpresa() {
+  const email = document.getElementById('l-email').value.trim();
+  const senha = document.getElementById('l-senha').value;
+  const erroEl = document.getElementById('l-erro');
+  erroEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`${BASE}/api/empresas/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, senha }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro ao fazer login');
+
+    if (data.status === 'bloqueado') {
+      erroEl.textContent = 'Sua assinatura está bloqueada. Entre em contato com o suporte.';
+      erroEl.style.display = '';
+      return;
+    }
+
+    // Salva sessão da empresa no localStorage
+    localStorage.setItem('fastpos_empresa', JSON.stringify({
+      subdominio: data.subdominio,
+      nome:       data.nome,
+      email:      email,
+      plano:      data.plano,
+      status:     data.status,
+      trial_fim:  data.trial_fim,
+    }));
+
+    // Redireciona para o painel da empresa (no subdomínio)
+    window.location.href = `https://${data.subdominio}.fastpos.com.br/pages/painel.html`;
+
+  } catch(e) {
+    erroEl.textContent = e.message;
+    erroEl.style.display = '';
+  }
+}
+
+// ── Navegação ─────────────────────────────────────────────────────────────────
+function mostrarLogin() {
+  window.location.href = '/login-app';
+}
+function mostrarForm() {
+  document.getElementById('step-form').style.display  = '';
+  document.getElementById('step-login').style.display = 'none';
+  document.getElementById('step-sucesso').style.display = 'none';
+  document.body.classList.remove('modo-login');
+}
+</script>
+</body>
+</html>

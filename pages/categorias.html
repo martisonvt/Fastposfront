@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Categorias - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    /* ── Mobile ── */
+    @media (max-width: 575px) {
+      .col-descricao { display: none !important; }
+      .btn-nova-cat span { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+
+  <!-- Header compacto -->
+  <div class="card mb-3">
+    <div class="card-body py-2 px-3 d-flex align-items-center gap-2">
+      <h2 class="mb-0 me-auto" style="font-size:1.05rem;font-weight:700;color:var(--text-main)">
+        <i class="bi bi-tags me-1"></i>Categorias
+      </h2>
+      <button class="btn btn-pdv btn-sm btn-nova-cat" onclick="abrirModal()">
+        <i class="bi bi-plus-lg me-1"></i><span>Nova Categoria</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0" style="overflow-x:auto">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Nome</th>
+            <th class="col-descricao">Descrição</th>
+            <th>Status</th>
+            <th class="text-center" style="width:90px">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-cats">
+          <tr><td colspan="4" class="text-center py-3 text-muted">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="modal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-titulo">Nova Categoria</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cat-id">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nome *</label>
+          <input type="text" id="cat-nome" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Descrição</label>
+          <input type="text" id="cat-descricao" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-pdv" id="btn-salvar" onclick="salvar()"><i class="bi bi-check-lg me-1"></i>Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=2"></script><script src="/js/utils.js?v=2"></script><script src="/js/components.js?v=2"></script>
+<script>
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/categorias.html');
+  if (!temPermissao('categorias') && !temPermissao('produtos')) { requirePermissao('categorias'); throw ''; }
+  const modal = new bootstrap.Modal(document.getElementById('modal'));
+
+  let catsCache = [];
+
+  async function carregar() {
+    catsCache = await api.categorias.listar();
+    const tb = document.getElementById('tabela-cats');
+    tb.innerHTML = catsCache.length === 0
+      ? '<tr><td colspan="4" class="text-center py-3 text-muted">Nenhuma categoria</td></tr>'
+      : catsCache.map((c, i) => `<tr>
+          <td class="fw-semibold">${c.nome}</td>
+          <td class="text-muted col-descricao">${c.descricao || '<span class="text-muted fst-italic small">—</span>'}</td>
+          <td><span class="badge bg-${c.ativo ? 'success' : 'secondary'}">${c.ativo ? 'Ativa' : 'Inativa'}</span></td>
+          <td class="text-center">
+            <button class="btn btn-sm btn-outline-primary me-1" onclick="editar(${i})" title="Editar"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deletar(${c.id})" title="Desativar"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>`).join('');
+  }
+
+  function abrirModal(id='', nome='', descricao='') {
+    document.getElementById('cat-id').value = id;
+    document.getElementById('cat-nome').value = nome;
+    document.getElementById('cat-descricao').value = descricao;
+    document.getElementById('modal-titulo').textContent = id ? 'Editar Categoria' : 'Nova Categoria';
+    modal.show();
+  }
+
+  function editar(i) {
+    const c = catsCache[i];
+    abrirModal(c.id, c.nome, c.descricao || '');
+  }
+
+  async function salvar() {
+    const id = document.getElementById('cat-id').value;
+    const nome = document.getElementById('cat-nome').value.trim();
+    if (!nome) { showToast('Nome é obrigatório', 'error'); return; }
+    const data = { nome, descricao: document.getElementById('cat-descricao').value.trim() };
+    try {
+      if (id) await api.categorias.atualizar(id, data);
+      else await api.categorias.criar(data);
+      modal.hide();
+      showToast('Categoria salva!');
+      carregar();
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  async function deletar(id) {
+    if (!confirmDialog('Desativar esta categoria?')) return;
+    try { await api.categorias.deletar(id); showToast('Categoria desativada'); carregar(); }
+    catch(e) { showToast(e.message, 'error'); }
+  }
+
+  carregar();
+</script>
+</body>
+</html>

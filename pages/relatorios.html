@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relatórios - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-bar-chart-line me-2"></i>Relatórios</h2>
+      <p>Análise de vendas, desempenho e faturamento</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-success" onclick="exportarXLSX()">
+        <i class="bi bi-file-earmark-excel me-1"></i>Exportar .xlsx
+      </button>
+      <button class="btn btn-outline-secondary" onclick="imprimirRelatorio()">
+        <i class="bi bi-printer me-1"></i>Imprimir
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtro de período -->
+  <div class="card mb-4">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label class="form-label small fw-semibold mb-1">Período</label>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary" onclick="setPeriodo('hoje', event)">Hoje</button>
+            <button class="btn btn-outline-secondary" onclick="setPeriodo('semana', event)">7 dias</button>
+            <button class="btn btn-outline-secondary active" onclick="setPeriodo('mes', event)">Este mês</button>
+            <button class="btn btn-outline-secondary" onclick="setPeriodo('personalizado', event)">Personalizado</button>
+          </div>
+        </div>
+        <div class="col-auto" id="periodo-custom" style="display:none">
+          <div class="d-flex gap-2">
+            <input type="date" id="dt-inicio" class="form-control form-control-sm">
+            <input type="date" id="dt-fim" class="form-control form-control-sm">
+          </div>
+        </div>
+        <div class="col-auto">
+          <label class="form-label small fw-semibold mb-1">Vendedor</label>
+          <select id="sel-vendedor" class="form-select form-select-sm" style="min-width:150px">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-pdv btn-sm" onclick="carregar()">
+            <i class="bi bi-search me-1"></i>Aplicar
+          </button>
+        </div>
+        <div class="col-auto ms-auto text-muted small" id="periodo-label"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs linha 1 -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-2 col-6">
+      <div class="kpi-card kpi-green">
+        <div class="kpi-label">Total Vendas</div>
+        <div class="kpi-value" id="r-qtd">-</div>
+        <i class="bi bi-receipt kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-label">Faturamento</div>
+        <div class="kpi-value" id="r-fat" style="font-size:1.1rem">-</div>
+        <i class="bi bi-cash-stack kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#0f5132,#198754);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Lucro Total</div>
+        <div class="kpi-value" id="r-lucro" style="font-size:1.1rem">-</div>
+        <i class="bi bi-cash-coin kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#084298,#0d6efd);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Margem %</div>
+        <div class="kpi-value" id="r-margem">-</div>
+        <i class="bi bi-percent kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="kpi-card kpi-orange">
+        <div class="kpi-label">Ticket Médio</div>
+        <div class="kpi-value" id="r-ticket" style="font-size:1.1rem">-</div>
+        <i class="bi bi-graph-up kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="kpi-card kpi-red">
+        <div class="kpi-label">Cancelamentos</div>
+        <div class="kpi-value" id="r-cancel">-</div>
+        <i class="bi bi-x-circle kpi-icon"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs linha 2: produtos da loja (estático) -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-3 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#4a2060,#6f42c1);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Produtos na Loja</div>
+        <div class="kpi-value" id="r-total-prod">-</div>
+        <i class="bi bi-box-seam kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#3d1a00,#fd7e14);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Custo das Vendas</div>
+        <div class="kpi-value" id="r-custo" style="font-size:1.1rem">-</div>
+        <i class="bi bi-tags kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#495057,#6c757d);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Produtos c/ Estoque Baixo</div>
+        <div class="kpi-value" id="r-est-baixo">-</div>
+        <i class="bi bi-exclamation-triangle kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#155724,#20c997);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Lucro / Venda</div>
+        <div class="kpi-value" id="r-lucro-ticket" style="font-size:1.1rem">-</div>
+        <i class="bi bi-wallet2 kpi-icon"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs linha 3: valor do estoque atual -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#1a3a5c,#0d6efd);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Estoque em Custo</div>
+        <div class="kpi-value" id="r-est-custo" style="font-size:1.05rem">-</div>
+        <i class="bi bi-archive kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-4 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#0f5132,#198754);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Estoque em Venda</div>
+        <div class="kpi-value" id="r-est-venda" style="font-size:1.05rem">-</div>
+        <i class="bi bi-currency-dollar kpi-icon"></i>
+      </div>
+    </div>
+    <div class="col-md-4 col-6">
+      <div class="kpi-card" style="background:linear-gradient(135deg,#5c3a00,#ffc107);color:#fff">
+        <div class="kpi-label" style="color:rgba(255,255,255,.75)">Margem Potencial</div>
+        <div class="kpi-value" id="r-est-margem" style="font-size:1.05rem">-</div>
+        <i class="bi bi-graph-up-arrow kpi-icon"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <!-- Gráfico de vendas por dia -->
+    <div class="col-md-8">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-bar-chart me-1"></i>Faturamento por Dia</div>
+        <div class="card-body" style="height:280px">
+          <canvas id="chart-dias"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico de formas de pagamento -->
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-pie-chart me-1"></i>Formas de Pagamento</div>
+        <div class="card-body" style="height:280px">
+          <canvas id="chart-formas"></canvas>
+        </div>
+        <div class="card-footer p-0">
+          <ul class="list-group list-group-flush" id="lista-formas" style="font-size:.8rem"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Top produtos -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-trophy me-1"></i>Top 10 Produtos Mais Vendidos</div>
+        <div class="card-body p-0">
+          <table class="table table-sm table-hover mb-0">
+            <thead><tr><th>#</th><th>Produto</th><th class="text-end">Qtd</th><th class="text-end">Faturamento</th><th class="text-end">Lucro</th><th class="text-end">Margem</th></tr></thead>
+            <tbody id="tb-top-produtos">
+              <tr><td colspan="4" class="text-center py-3 text-muted">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desempenho por vendedor -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-people me-1"></i>Desempenho por Vendedor</div>
+        <div class="card-body p-0">
+          <table class="table table-sm table-hover mb-0">
+            <thead><tr><th>Vendedor</th><th class="text-end">Vendas</th><th class="text-end">Faturamento</th><th class="text-end">Ticket</th></tr></thead>
+            <tbody id="tb-vendedores">
+              <tr><td colspan="4" class="text-center py-3 text-muted">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vendas por dia (tabela) -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-calendar3 me-1"></i>Vendas por Dia</div>
+        <div class="card-body p-0">
+          <table class="table table-sm table-hover mb-0">
+            <thead><tr><th>Data</th><th class="text-end">Nº Vendas</th><th class="text-end">Faturamento</th><th class="text-end">Lucro</th><th class="text-end">Margem %</th></tr></thead>
+            <tbody id="tb-dias">
+              <tr><td colspan="5" class="text-center py-3 text-muted">Carregando...</td></tr>
+            </tbody>
+            <tfoot id="tfoot-dias" class="table-light fw-bold"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Todos os produtos vendidos -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span><i class="bi bi-box-seam me-1"></i>Todos os Produtos Vendidos</span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-secondary" id="badge-total-prods">0 produtos</span>
+            <input type="text" id="busca-todos-prods" class="form-control form-control-sm"
+              placeholder="Filtrar produto..." oninput="filtrarTodosProd(this.value)"
+              style="width:180px;font-size:.8rem">
+          </div>
+        </div>
+        <div class="card-body p-0" style="overflow-x:auto">
+          <table class="table table-sm table-hover mb-0" id="tb-todos-produtos">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Produto</th>
+                <th class="text-end">Qtd Vendida</th>
+                <th class="text-end">Faturamento</th>
+                <th class="text-end">Custo Total</th>
+                <th class="text-end">Lucro</th>
+                <th class="text-end">Margem %</th>
+              </tr>
+            </thead>
+            <tbody id="tb-todos-prod-body">
+              <tr><td colspan="7" class="text-center py-3 text-muted">Carregando...</td></tr>
+            </tbody>
+            <tfoot id="tfoot-todos-prod" class="table-light fw-bold"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+    <!-- Comissões -->
+    <div class="col-12 mt-2" id="secao-comissoes" style="display:none">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-person-check me-1"></i>Comissões de Vendedores</span>
+          <div class="d-flex gap-2" id="comissoes-kpis" style="font-size:.85rem"></div>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Vendedor</th>
+                <th class="text-end">% Comissão</th>
+                <th class="text-end">Total Vendas</th>
+                <th class="text-end">Total Comissão</th>
+                <th class="text-end text-warning">A Pagar</th>
+                <th class="text-end text-success">Pago</th>
+              </tr>
+            </thead>
+            <tbody id="tb-comissoes">
+              <tr><td colspan="6" class="text-center py-3 text-muted">Carregando...</td></tr>
+            </tbody>
+          </table>
+          <div class="px-3 py-2 text-muted" style="font-size:.78rem">
+            <i class="bi bi-info-circle me-1"></i>Para pagar comissões, acesse <strong>Vendedores</strong> → botão <i class="bi bi-cash-coin"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Minhas Comissões (vendedor não-admin) -->
+    <div class="col-12 mt-2" id="secao-minhas-comissoes" style="display:none">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-person-check me-1"></i>Minhas Comissões</div>
+        <div class="card-body p-0">
+          <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+              <tr><th>Data</th><th>Venda Nº</th><th class="text-end">Valor Venda</th><th class="text-end">%</th><th class="text-end">Comissão</th><th>Status</th></tr>
+            </thead>
+            <tbody id="tb-minhas-com">
+              <tr><td colspan="6" class="text-center py-3 text-muted">Carregando...</td></tr>
+            </tbody>
+            <tfoot id="tfoot-minhas-com" class="table-light fw-bold"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="/js/api.js?v=2"></script><script src="/js/utils.js?v=2"></script><script src="/js/components.js?v=2"></script>
+<script>
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/relatorios.html');
+  if (!requirePermissao('relatorios')) throw '';
+
+  let chartDias = null;
+  let chartFormas = null;
+  let periodoAtual = 'mes';
+
+  // Cache dos dados carregados (para imprimir e exportar)
+  let _dadosDias = [], _dadosTop = [], _dadosVends = [], _dadosFormas = [];
+  let _dadosVendasLista = [];   // lista completa de vendas individuais
+  let _dadosAlertas = [];       // produtos com estoque baixo/zerado
+  let _dadosTodosProd = [];     // todos os produtos vendidos (sem limite)
+  let _dadosDiariosProd = [];   // vendas por produto por dia
+  let _dadosComparativo = [];   // comparativo período atual vs anterior
+  let _dadosSemGiro = [];       // produtos sem venda nos últimos 30 dias
+  let _kpis = {};
+  let _estoque = { total_custo: 0, total_venda: 0, margem_potencial: 0 };
+
+  function setPeriodo(p, e) {
+    periodoAtual = p;
+    document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+    if (e && e.target) e.target.classList.add('active');
+    document.getElementById('periodo-custom').style.display = p === 'personalizado' ? '' : 'none';
+    if (p !== 'personalizado') carregar();
+  }
+
+  function getDatas() {
+    const hoje = dataHojeISO();
+    if (periodoAtual === 'hoje') return { inicio: hoje, fim: hoje };
+    if (periodoAtual === 'semana') {
+      const d = new Date(); d.setDate(d.getDate() - 6);
+      return { inicio: d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'), fim: hoje };
+    }
+    if (periodoAtual === 'mes') return { inicio: inicioMesISO(), fim: hoje };
+    return {
+      inicio: document.getElementById('dt-inicio').value || hoje,
+      fim: document.getElementById('dt-fim').value || hoje,
+    };
+  }
+
+  async function carregar() {
+    const { inicio, fim } = getDatas();
+    document.getElementById('periodo-label').textContent =
+      inicio === fim ? fmtDataCurta(inicio + 'T12:00') : `${fmtDataCurta(inicio + 'T12:00')} → ${fmtDataCurta(fim + 'T12:00')}`;
+
+    const vendedorId = document.getElementById('sel-vendedor').value;
+    const params = { data_inicio: inicio, data_fim: fim, ...(vendedorId ? { vendedor_id: vendedorId } : {}) };
+
+    // KPIs do período
+    try {
+      const vendas = await api.vendas.listar({ ...params, limite: 500 });
+      _dadosVendasLista = vendas; // salva lista completa para exportação
+      const concluidas = vendas.filter(v => v.status === 'concluida');
+      const canceladas = vendas.filter(v => v.status === 'cancelada');
+      const fat    = concluidas.reduce((s, v) => s + v.total, 0);
+      const ticket = concluidas.length ? fat / concluidas.length : 0;
+      _kpis.qtd    = concluidas.length;
+      _kpis.fat    = fat;
+      _kpis.ticket = ticket;
+      _kpis.cancel = canceladas.length;
+      document.getElementById('r-qtd').textContent    = concluidas.length;
+      document.getElementById('r-fat').textContent    = fmtMoeda(fat);
+      document.getElementById('r-ticket').textContent = fmtMoeda(ticket);
+      document.getElementById('r-cancel').textContent = canceladas.length;
+    } catch(e) {}
+
+    // Total de produtos, estoque baixo e valor do estoque (estático)
+    try {
+      const resumoDia = await api.relatorios.resumoDia();
+      _kpis.totalProd = resumoDia.total_produtos != null ? resumoDia.total_produtos : 0;
+      document.getElementById('r-total-prod').textContent = _kpis.totalProd || '-';
+      const alertas = await api.estoque.alertas();
+      _dadosAlertas = alertas; // salva lista completa para exportação
+      _kpis.estBaixo = alertas.length;
+      document.getElementById('r-est-baixo').textContent = _kpis.estBaixo;
+    } catch(e) {}
+
+    try {
+      const estq = await api.relatorios.valorEstoque();
+      _estoque = estq;
+      document.getElementById('r-est-custo').textContent  = fmtMoeda(estq.total_custo);
+      document.getElementById('r-est-venda').textContent  = fmtMoeda(estq.total_venda);
+      document.getElementById('r-est-margem').textContent = fmtMoeda(estq.margem_potencial);
+    } catch(e) {}
+
+    // Vendas por dia + KPIs de lucro (uma única chamada reutilizada)
+    try {
+      const dados = await api.relatorios.vendasPeriodo(params);
+      _dadosDias = dados;
+
+      // KPIs de lucro
+      const fatLucro  = dados.reduce((s, d) => s + d.total, 0);
+      const custo     = dados.reduce((s, d) => s + (d.custo || 0), 0);
+      const lucro     = fatLucro - custo;
+      const margem    = fatLucro > 0 ? lucro / fatLucro * 100 : 0;
+      const qtdVendas = dados.reduce((s, d) => s + d.quantidade, 0);
+      _kpis.lucro       = lucro;
+      _kpis.margem      = margem;
+      _kpis.custo       = custo;
+      _kpis.lucroTicket = qtdVendas ? lucro / qtdVendas : 0;
+      document.getElementById('r-lucro').textContent        = fmtMoeda(lucro);
+      document.getElementById('r-margem').textContent       = margem.toFixed(1) + '%';
+      document.getElementById('r-custo').textContent        = fmtMoeda(custo);
+      document.getElementById('r-lucro-ticket').textContent = fmtMoeda(_kpis.lucroTicket);
+
+      const labels = dados.map(d => new Date(d.data + 'T12:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }));
+      const values = dados.map(d => d.total);
+
+      const lucros = dados.map(d => (d.lucro != null ? d.lucro : 0));
+      if (chartDias) chartDias.destroy();
+      chartDias = new Chart(document.getElementById('chart-dias'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Faturamento', data: values, backgroundColor: '#2d8a4e', borderRadius: 4, borderSkipped: false },
+            { label: 'Lucro',       data: lucros, backgroundColor: '#ffc107', borderRadius: 4, borderSkipped: false },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } },
+          scales: { y: { ticks: { callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR') } } }
+        }
+      });
+
+      const tb = document.getElementById('tb-dias');
+      const totalGeral = dados.reduce((s, d) => s + d.total, 0);
+      const qtdGeral = dados.reduce((s, d) => s + d.quantidade, 0);
+      const lucroGeral = dados.reduce((s, d) => s + (d.lucro || 0), 0);
+      const margemGeral = totalGeral > 0 ? (lucroGeral / totalGeral * 100) : 0;
+      tb.innerHTML = dados.length === 0
+        ? '<tr><td colspan="5" class="text-center text-muted py-3">Sem dados</td></tr>'
+        : dados.map(d => {
+            const margem = d.total > 0 ? (d.lucro / d.total * 100) : 0;
+            const lucroColor = (d.lucro || 0) >= 0 ? '' : 'color:#dc3545';
+            return `<tr>
+            <td>${new Date(d.data + 'T12:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' })}</td>
+            <td class="text-end">${d.quantidade}</td>
+            <td class="text-end fw-semibold">${fmtMoeda(d.total)}</td>
+            <td class="text-end fw-semibold" style="${lucroColor}">${fmtMoeda(d.lucro || 0)}</td>
+            <td class="text-end text-muted">${margem.toFixed(1)}%</td>
+          </tr>`;
+          }).join('');
+      document.getElementById('tfoot-dias').innerHTML =
+        `<tr><td>Total</td><td class="text-end">${qtdGeral}</td><td class="text-end">${fmtMoeda(totalGeral)}</td><td class="text-end" style="${lucroGeral < 0 ? 'color:#dc3545' : ''}">${fmtMoeda(lucroGeral)}</td><td class="text-end text-muted">${margemGeral.toFixed(1)}%</td></tr>`;
+    } catch(e) {}
+
+    // Formas de pagamento
+    try {
+      const formas = await api.relatorios.formasPagamento(params);
+      _dadosFormas = formas;
+      const cores = ['#1a6b3a','#1a73e8','#f4a235','#e53935','#6c757d','#20c997'];
+      if (chartFormas) chartFormas.destroy();
+      chartFormas = new Chart(document.getElementById('chart-formas'), {
+        type: 'doughnut',
+        data: {
+          labels: formas.map(f => nomePagamento(f.forma)),
+          datasets: [{ data: formas.map(f => f.total), backgroundColor: cores, borderWidth: 2 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+      const totalFormas = formas.reduce((s, f) => s + f.total, 0);
+      document.getElementById('lista-formas').innerHTML = formas.map((f, i) => `
+        <li class="list-group-item d-flex justify-content-between py-1 px-3">
+          <span><span style="width:10px;height:10px;border-radius:50%;background:${cores[i]};display:inline-block;margin-right:5px"></span>${nomePagamento(f.forma)} (${f.quantidade}x)</span>
+          <span class="fw-semibold">${fmtMoeda(f.total)}</span>
+        </li>`).join('');
+    } catch(e) {}
+
+    // Top produtos
+    try {
+      const top = await api.relatorios.maisVendidos(params);
+      _dadosTop = top;
+      const tb = document.getElementById('tb-top-produtos');
+      tb.innerHTML = top.length === 0
+        ? '<tr><td colspan="4" class="text-center text-muted py-3">Sem dados</td></tr>'
+        : top.map((p, i) => `<tr>
+            <td><span class="badge ${i<3?'bg-warning text-dark':'bg-secondary'}">${i+1}º</span></td>
+            <td class="fw-semibold">${p.nome}</td>
+            <td class="text-end">${p.quantidade_total} ${p.unidade}</td>
+            <td class="text-end">${fmtMoeda(p.faturamento)}</td>
+            <td class="text-end fw-bold ${((p.lucro!=null?p.lucro:0))>=0?'text-success':'text-danger'}">${fmtMoeda(p.lucro!=null?p.lucro:0)}</td>
+            <td class="text-end">
+              <span class="badge ${(p.margem_pct!=null?p.margem_pct:0)>=30?'bg-success':(p.margem_pct!=null?p.margem_pct:0)>=10?'bg-warning text-dark':'bg-danger'}">
+                ${(p.margem_pct!=null?p.margem_pct:0).toFixed(1)}%
+              </span>
+            </td>
+          </tr>`).join('');
+    } catch(e) {}
+
+    // Desempenho vendedores
+    try {
+      const vends = await api.relatorios.desempenho(params);
+      _dadosVends = vends;
+      const tb = document.getElementById('tb-vendedores');
+      tb.innerHTML = vends.length === 0
+        ? '<tr><td colspan="4" class="text-center text-muted py-3">Sem dados</td></tr>'
+        : vends.map(v => `<tr>
+            <td class="fw-semibold">${v.nome}</td>
+            <td class="text-end">${v.quantidade_vendas}</td>
+            <td class="text-end">${fmtMoeda(v.faturamento)}</td>
+            <td class="text-end">${fmtMoeda(v.ticket_medio)}</td>
+          </tr>`).join('');
+    } catch(e) {}
+
+    // Todos os produtos vendidos (sem limite Top 10)
+    try {
+      const todos = await api.relatorios.maisVendidos({ ...params, limite: 500 });
+      _dadosTodosProd = todos;
+      renderTodosProdutos(todos);
+    } catch(e) {
+      document.getElementById('tb-todos-prod-body').innerHTML =
+        '<tr><td colspan="7" class="text-center text-muted py-3">Erro ao carregar</td></tr>';
+    }
+
+    // Dados estratégicos para Excel (não bloqueiam a UI)
+    try { _dadosDiariosProd = await api.relatorios.vendasDiariasProdutos(params); } catch(e) { _dadosDiariosProd = []; }
+    try { _dadosComparativo = await api.relatorios.comparativoProdutos(params); } catch(e) { _dadosComparativo = []; }
+    try { _dadosSemGiro = await api.relatorios.produtosSemGiro(30); } catch(e) { _dadosSemGiro = []; }
+
+    // Carrega comissões junto
+    carregarComissoes();
+  }
+
+  // ── Imprimir ──────────────────────────────────────
+  function imprimirRelatorio() {
+    const periodo = document.getElementById('periodo-label').textContent;
+    const S  = 'padding:4px 8px;border:1px solid #ddd';
+    const SH = S + ';background:#f0f0f0;font-weight:bold';
+    const SR = S + ';text-align:right';
+    const SRB= SR + ';font-weight:bold';
+
+    // ── KPIs de vendas (2 linhas) ──
+    const kpiHtml = `
+      <div class="sec">
+        <div class="sec-title">Indicadores do Período</div>
+        <table>
+          <tr>
+            <td class="kbox"><div class="klabel">Total Vendas</div><div class="kval">${(_kpis.qtd != null ? _kpis.qtd : '-')}</div></td>
+            <td class="kbox"><div class="klabel">Faturamento</div><div class="kval">${fmtMoeda(_kpis.fat != null ? _kpis.fat : 0)}</div></td>
+            <td class="kbox"><div class="klabel">Custo das Vendas</div><div class="kval">${fmtMoeda(_kpis.custo != null ? _kpis.custo : 0)}</div></td>
+            <td class="kbox"><div class="klabel">Lucro Total</div><div class="kval green">${fmtMoeda(_kpis.lucro != null ? _kpis.lucro : 0)}</div></td>
+          </tr>
+          <tr>
+            <td class="kbox"><div class="klabel">Ticket Médio</div><div class="kval">${fmtMoeda(_kpis.ticket != null ? _kpis.ticket : 0)}</div></td>
+            <td class="kbox"><div class="klabel">Lucro / Venda</div><div class="kval">${fmtMoeda(_kpis.lucroTicket != null ? _kpis.lucroTicket : 0)}</div></td>
+            <td class="kbox"><div class="klabel">Margem %</div><div class="kval">${(_kpis.margem != null ? _kpis.margem : 0).toFixed(1)}%</div></td>
+            <td class="kbox"><div class="klabel">Cancelamentos</div><div class="kval red">${(_kpis.cancel != null ? _kpis.cancel : '-')}</div></td>
+          </tr>
+        </table>
+      </div>`;
+
+    // ── Estoque atual ──
+    const estoqueHtml = `
+      <div class="sec">
+        <div class="sec-title">Valor do Estoque Atual</div>
+        <table>
+          <tr>
+            <td class="kbox"><div class="klabel">Em Custo (investido)</div><div class="kval">${fmtMoeda(_estoque.total_custo)}</div></td>
+            <td class="kbox"><div class="klabel">Em Venda (potencial)</div><div class="kval green">${fmtMoeda(_estoque.total_venda)}</div></td>
+            <td class="kbox"><div class="klabel">Margem Potencial</div><div class="kval green">${fmtMoeda(_estoque.margem_potencial)}</div></td>
+            <td class="kbox"><div class="klabel">Produtos c/ Estoque</div><div class="kval">${(_estoque.qtd_produtos_com_estoque != null ? _estoque.qtd_produtos_com_estoque : '-')}</div></td>
+          </tr>
+        </table>
+      </div>`;
+
+    // ── Vendas por dia (com custo e lucro) ──
+    const totDias  = _dadosDias.reduce((s,d)=>s+d.total,0);
+    const custDias = _dadosDias.reduce((s,d)=>s+(d.custo||0),0);
+    const lucrDias = _dadosDias.reduce((s,d)=>s+(d.lucro||0),0);
+    const qtdDias  = _dadosDias.reduce((s,d)=>s+d.quantidade,0);
+    const diasHtml = `
+      <div class="sec">
+        <div class="sec-title">Vendas por Dia</div>
+        <table>
+          <thead><tr>
+            <th style="${SH};text-align:left">Data</th>
+            <th style="${SH};text-align:right">Nº Vendas</th>
+            <th style="${SH};text-align:right">Faturamento</th>
+            <th style="${SH};text-align:right">Custo</th>
+            <th style="${SH};text-align:right">Lucro</th>
+            <th style="${SH};text-align:right">Margem %</th>
+          </tr></thead>
+          <tbody>${_dadosDias.map((d,i) => {
+            const m = d.total > 0 ? (d.lucro/d.total*100) : 0;
+            return `<tr style="background:${i%2?'#fafafa':'#fff'}">
+              <td style="${S}">${new Date(d.data+'T12:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})}</td>
+              <td style="${SR}">${d.quantidade}</td>
+              <td style="${SR}">${fmtMoeda(d.total)}</td>
+              <td style="${SR}">${fmtMoeda(d.custo||0)}</td>
+              <td style="${SR}">${fmtMoeda(d.lucro||0)}</td>
+              <td style="${SR}">${m.toFixed(1)}%</td>
+            </tr>`;
+          }).join('')}</tbody>
+          <tfoot><tr style="background:#e8f5e9;font-weight:bold">
+            <td style="${S}">TOTAL</td>
+            <td style="${SR}">${qtdDias}</td>
+            <td style="${SRB}">${fmtMoeda(totDias)}</td>
+            <td style="${SRB}">${fmtMoeda(custDias)}</td>
+            <td style="${SRB}">${fmtMoeda(lucrDias)}</td>
+            <td style="${SR}">${totDias>0?(lucrDias/totDias*100).toFixed(1):0}%</td>
+          </tr></tfoot>
+        </table>
+      </div>`;
+
+    // ── Formas de pagamento ──
+    const totFormas = _dadosFormas.reduce((s,f)=>s+f.total,0);
+    const totQtdF   = _dadosFormas.reduce((s,f)=>s+f.quantidade,0);
+    const formasHtml = `
+      <div class="sec">
+        <div class="sec-title">Formas de Pagamento</div>
+        <table>
+          <thead><tr>
+            <th style="${SH};text-align:left">Forma</th>
+            <th style="${SH};text-align:right">Qtd</th>
+            <th style="${SH};text-align:right">Total</th>
+            <th style="${SH};text-align:right">% do Fat.</th>
+          </tr></thead>
+          <tbody>${_dadosFormas.map((f,i) => `<tr style="background:${i%2?'#fafafa':'#fff'}">
+            <td style="${S}">${nomePagamento(f.forma)}</td>
+            <td style="${SR}">${f.quantidade}</td>
+            <td style="${SR}">${fmtMoeda(f.total)}</td>
+            <td style="${SR}">${totFormas>0?(f.total/totFormas*100).toFixed(1):0}%</td>
+          </tr>`).join('')}</tbody>
+          <tfoot><tr style="background:#e8f5e9;font-weight:bold">
+            <td style="${S}">TOTAL</td>
+            <td style="${SR}">${totQtdF}</td>
+            <td style="${SRB}">${fmtMoeda(totFormas)}</td>
+            <td style="${SR}">100%</td>
+          </tr></tfoot>
+        </table>
+      </div>`;
+
+    // ── Top produtos (com margem) ──
+    const topHtml = `
+      <div class="sec">
+        <div class="sec-title">Top 10 Produtos Mais Vendidos</div>
+        <table>
+          <thead><tr>
+            <th style="${SH};text-align:center">#</th>
+            <th style="${SH};text-align:left">Produto</th>
+            <th style="${SH};text-align:right">Qtd</th>
+            <th style="${SH};text-align:right">Faturamento</th>
+            <th style="${SH};text-align:right">Custo</th>
+            <th style="${SH};text-align:right">Lucro</th>
+            <th style="${SH};text-align:right">Margem %</th>
+          </tr></thead>
+          <tbody>${_dadosTop.map((p,i) => `<tr style="background:${i%2?'#fafafa':'#fff'}">
+            <td style="${S};text-align:center">${i+1}º</td>
+            <td style="${S};font-weight:${i<3?'bold':'normal'}">${p.nome}</td>
+            <td style="${SR}">${p.quantidade_total} ${p.unidade}</td>
+            <td style="${SR}">${fmtMoeda(p.faturamento)}</td>
+            <td style="${SR}">${fmtMoeda(p.custo_total!=null?p.custo_total:0)}</td>
+            <td style="${SR};color:${(p.lucro!=null?p.lucro:0)>=0?'#155724':'#721c24'}">${fmtMoeda(p.lucro!=null?p.lucro:0)}</td>
+            <td style="${SR}">${(p.margem_pct!=null?p.margem_pct:0).toFixed(1)}%</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+
+    // ── Desempenho vendedores ──
+    const totFatV = _dadosVends.reduce((s,v)=>s+v.faturamento,0);
+    const vendsHtml = `
+      <div class="sec">
+        <div class="sec-title">Desempenho por Vendedor</div>
+        <table>
+          <thead><tr>
+            <th style="${SH};text-align:left">Vendedor</th>
+            <th style="${SH};text-align:right">Nº Vendas</th>
+            <th style="${SH};text-align:right">Faturamento</th>
+            <th style="${SH};text-align:right">% do Total</th>
+            <th style="${SH};text-align:right">Ticket Médio</th>
+          </tr></thead>
+          <tbody>${_dadosVends.map((v,i) => `<tr style="background:${i%2?'#fafafa':'#fff'}">
+            <td style="${S};font-weight:bold">${v.nome}</td>
+            <td style="${SR}">${v.quantidade_vendas}</td>
+            <td style="${SR}">${fmtMoeda(v.faturamento)}</td>
+            <td style="${SR}">${totFatV>0?(v.faturamento/totFatV*100).toFixed(1):0}%</td>
+            <td style="${SR}">${fmtMoeda(v.ticket_medio)}</td>
+          </tr>`).join('')}</tbody>
+          <tfoot><tr style="background:#e8f5e9;font-weight:bold">
+            <td style="${S}">TOTAL</td>
+            <td style="${SR}">${_dadosVends.reduce((s,v)=>s+v.quantidade_vendas,0)}</td>
+            <td style="${SRB}">${fmtMoeda(totFatV)}</td>
+            <td style="${SR}">100%</td>
+            <td style="${SR}">—</td>
+          </tr></tfoot>
+        </table>
+      </div>`;
+
+    const w = window.open('', '_blank', 'width=960,height=800');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório PDV</title>
+      <style>
+        *{box-sizing:border-box}
+        body{font-family:Arial,sans-serif;font-size:11px;margin:0;color:#222;background:#fff}
+        .page{padding:18px 22px}
+        .header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1a6b3a;padding-bottom:8px;margin-bottom:14px}
+        .header h1{font-size:16px;margin:0;color:#1a6b3a}
+        .header .meta{font-size:10px;color:#555;text-align:right;line-height:1.6}
+        .sec{margin-bottom:14px}
+        .sec-title{font-size:12px;font-weight:bold;color:#fff;background:#1a6b3a;padding:4px 8px;margin-bottom:4px;border-radius:2px}
+        table{width:100%;border-collapse:collapse;font-size:10.5px}
+        .kbox{border:1px solid #ddd;padding:6px 10px;width:25%}
+        .klabel{font-size:9.5px;color:#666;margin-bottom:2px}
+        .kval{font-size:13px;font-weight:bold;color:#222}
+        .kval.green{color:#155724}
+        .kval.red{color:#721c24}
+        tfoot td{border-top:2px solid #aaa}
+        @media print{
+          @page{margin:10mm}
+          body{font-size:10px}
+        }
+      </style>
+      </head><body><div class="page">
+      <div class="header">
+        <h1>Relatório de Vendas — PDV</h1>
+        <div class="meta">Período: <strong>${periodo}</strong><br>Gerado em: ${new Date().toLocaleString('pt-BR')}</div>
+      </div>
+      ${kpiHtml}${estoqueHtml}${diasHtml}${formasHtml}${topHtml}${vendsHtml}
+      </div><script>window.onload=function(){window.print()}<\/script>
+      </body></html>`);
+    w.document.close();
+  }
+
+  // ── Exportar XLSX ─────────────────────────────────
+  function _fmtN(ws, ref, fmt) {
+    if (!ws[ref]) return;
+    ws[ref].t = 'n';
+    ws[ref].z = fmt;
+  }
+  function _moeda(ws, ref) { _fmtN(ws, ref, 'R$ #,##0.00'); }
+  function _pct(ws, ref)   { _fmtN(ws, ref, '0.0%'); }
+  function _int(ws, ref)   { _fmtN(ws, ref, '#,##0'); }
+
+  function exportarXLSX() {
+    const periodo = document.getElementById('periodo-label').textContent;
+    const loja    = ((window.configLoja && window.configLoja.nome_empresa) || 'PDV').toUpperCase();
+    const nomeArq = 'relatorio_' + dataHojeISO() + '.xlsx';
+    const wb = XLSX.utils.book_new();
+
+    // helpers locais
+    const n = function(v) { return v != null ? v : 0; };
+
+    // ── Aba 1: Resumo ──────────────────────────────
+    const wsKpi = XLSX.utils.aoa_to_sheet([
+      /* 1 */ [loja + ' — Relatório de Vendas'],
+      /* 2 */ ['Período: ' + periodo],
+      /* 3 */ ['Gerado em: ' + new Date().toLocaleString('pt-BR')],
+      /* 4 */ [],
+      /* 5 */ ['INDICADORES DO PERÍODO'],
+      /* 6 */ ['Indicador', 'Valor', 'Indicador', 'Valor'],
+      /* 7 */ ['Total Vendas',    n(_kpis.qtd),         'Cancelamentos',    n(_kpis.cancel)],
+      /* 8 */ ['Faturamento',     n(_kpis.fat),         'Custo das Vendas', n(_kpis.custo)],
+      /* 9 */ ['Lucro Total',     n(_kpis.lucro),       'Margem %',         n(_kpis.margem) / 100],
+      /*10 */ ['Ticket Médio',    n(_kpis.ticket),      'Lucro / Venda',    n(_kpis.lucroTicket)],
+      /*11 */ ['Produtos na Loja',n(_kpis.totalProd),   'Estoque Baixo',    n(_kpis.estBaixo)],
+      /*12 */ [],
+      /*13 */ ['ESTOQUE ATUAL'],
+      /*14 */ ['Indicador', 'Valor', 'Indicador', 'Valor'],
+      /*15 */ ['Estoque em Custo (R$)',  _estoque.total_custo,        'Margem Potencial',      _estoque.margem_potencial],
+      /*16 */ ['Estoque em Venda (R$)',  _estoque.total_venda,        'Produtos c/ Estoque',   n(_estoque.qtd_produtos_com_estoque)],
+    ]);
+    // Formatação numérica — linha 8 (B8=fat, D8=custo)
+    ['B8','D8','B9','D10','B10','B15','D15','B16'].forEach(r => _moeda(wsKpi, r));
+    _pct(wsKpi, 'D9');      // Margem %
+    _int(wsKpi, 'B7');      // Total Vendas (inteiro)
+    _int(wsKpi, 'D7');      // Cancelamentos
+    _int(wsKpi, 'B11');     // Produtos na Loja
+    _int(wsKpi, 'D11');     // Estoque Baixo
+    _int(wsKpi, 'D16');     // Produtos c/ Estoque
+    wsKpi['!cols'] = [{wch:26},{wch:18},{wch:24},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, wsKpi, 'Resumo');
+
+    // ── Aba 2: Vendas por Dia ──────────────────────
+    const totDias  = _dadosDias.reduce(function(s,d){ return s+d.total; }, 0);
+    const custDias = _dadosDias.reduce(function(s,d){ return s+(d.custo||0); }, 0);
+    const lucrDias = _dadosDias.reduce(function(s,d){ return s+(d.lucro||0); }, 0);
+    const qtdDias  = _dadosDias.reduce(function(s,d){ return s+d.quantidade; }, 0);
+    const diasRows = [
+      ['Data', 'Dia da Semana', 'Nº Vendas', 'Faturamento (R$)', 'Custo (R$)', 'Lucro (R$)', 'Margem %'],
+      ..._dadosDias.map(function(d) {
+        var dt = new Date(d.data + 'T12:00');
+        return [
+          dt.toLocaleDateString('pt-BR'),
+          dt.toLocaleDateString('pt-BR', { weekday: 'long' }),
+          d.quantidade,
+          d.total,
+          d.custo || 0,
+          d.lucro || 0,
+          d.total > 0 ? (d.lucro || 0) / d.total : 0,
+        ];
+      }),
+      ['TOTAL', '', qtdDias, totDias, custDias, lucrDias, totDias > 0 ? lucrDias / totDias : 0],
+    ];
+    const wsDias = XLSX.utils.aoa_to_sheet(diasRows);
+    for (var r = 2; r <= diasRows.length; r++) {
+      ['D','E','F'].forEach(function(c){ _moeda(wsDias, c+r); });
+      _pct(wsDias, 'G' + r);
+      _int(wsDias, 'C' + r);
+    }
+    wsDias['!cols'] = [{wch:12},{wch:18},{wch:11},{wch:18},{wch:16},{wch:16},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, wsDias, 'Vendas por Dia');
+
+    // ── Aba 3: Formas de Pagamento ─────────────────
+    const totFormas = _dadosFormas.reduce(function(s,f){ return s+f.total; }, 0);
+    const totQtdF   = _dadosFormas.reduce(function(s,f){ return s+f.quantidade; }, 0);
+    const formasRows = [
+      ['Forma de Pagamento', 'Qtd', 'Total (R$)', '% do Faturamento'],
+      ..._dadosFormas.map(function(f) {
+        return [
+          nomePagamento(f.forma),
+          f.quantidade,
+          f.total,
+          totFormas > 0 ? f.total / totFormas : 0,
+        ];
+      }),
+      ['TOTAL', totQtdF, totFormas, totFormas > 0 ? 1 : 0],
+    ];
+    const wsFormas = XLSX.utils.aoa_to_sheet(formasRows);
+    for (var r = 2; r <= formasRows.length; r++) {
+      _int(wsFormas, 'B' + r);
+      _moeda(wsFormas, 'C' + r);
+      _pct(wsFormas, 'D' + r);
+    }
+    wsFormas['!cols'] = [{wch:22},{wch:8},{wch:18},{wch:20}];
+    XLSX.utils.book_append_sheet(wb, wsFormas, 'Pagamentos');
+
+    // ── Aba 4: Top Produtos ────────────────────────
+    const totFatTop  = _dadosTop.reduce(function(s,p){ return s+p.faturamento; }, 0);
+    const totQtdTop  = _dadosTop.reduce(function(s,p){ return s+p.quantidade_total; }, 0);
+    const totCusTop  = _dadosTop.reduce(function(s,p){ return s+n(p.custo_total); }, 0);
+    const totLucTop  = _dadosTop.reduce(function(s,p){ return s+n(p.lucro); }, 0);
+    const topRows = [
+      ['#', 'Produto', 'Unid.', 'Qtd Vendida', 'Faturamento (R$)', '% Fat.', 'Custo Total (R$)', 'Lucro (R$)', 'Margem %'],
+      ..._dadosTop.map(function(p, i) {
+        return [
+          i + 1, p.nome, p.unidade, p.quantidade_total,
+          p.faturamento,
+          totFatTop > 0 ? p.faturamento / totFatTop : 0,
+          n(p.custo_total),
+          n(p.lucro),
+          n(p.margem_pct) / 100,
+        ];
+      }),
+      ['TOTAL', '', '', totQtdTop, totFatTop, 1, totCusTop, totLucTop, totFatTop > 0 ? totLucTop / totFatTop : 0],
+    ];
+    const wsTop = XLSX.utils.aoa_to_sheet(topRows);
+    for (var r = 2; r <= topRows.length; r++) {
+      _int(wsTop, 'D' + r);
+      ['E','G','H'].forEach(function(c){ _moeda(wsTop, c+r); });
+      ['F','I'].forEach(function(c){ _pct(wsTop, c+r); });
+    }
+    wsTop['!cols'] = [{wch:4},{wch:34},{wch:7},{wch:13},{wch:18},{wch:8},{wch:18},{wch:16},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, wsTop, 'Top Produtos');
+
+    // ── Aba 5: Vendedores ──────────────────────────
+    const totFatV  = _dadosVends.reduce(function(s,v){ return s+v.faturamento; }, 0);
+    const totVends = _dadosVends.reduce(function(s,v){ return s+v.quantidade_vendas; }, 0);
+    const vendsRows = [
+      ['Vendedor', 'Nº Vendas', 'Faturamento (R$)', '% do Total', 'Ticket Médio (R$)'],
+      ..._dadosVends.map(function(v) {
+        return [
+          v.nome,
+          v.quantidade_vendas,
+          v.faturamento,
+          totFatV > 0 ? v.faturamento / totFatV : 0,
+          v.ticket_medio,
+        ];
+      }),
+      ['TOTAL', totVends, totFatV, totFatV > 0 ? 1 : 0, totVends > 0 ? totFatV / totVends : 0],
+    ];
+    const wsVends = XLSX.utils.aoa_to_sheet(vendsRows);
+    for (var r = 2; r <= vendsRows.length; r++) {
+      _int(wsVends, 'B' + r);
+      _moeda(wsVends, 'C' + r);
+      _pct(wsVends, 'D' + r);
+      _moeda(wsVends, 'E' + r);
+    }
+    wsVends['!cols'] = [{wch:26},{wch:12},{wch:20},{wch:14},{wch:20}];
+    XLSX.utils.book_append_sheet(wb, wsVends, 'Vendedores');
+
+    // ── Aba 6: Vendas Detalhadas ───────────────────
+    const vendasRows = [
+      ['Nº Venda', 'Data/Hora', 'Status', 'Cliente', 'Vendedor', 'Forma Pagamento', 'Subtotal (R$)', 'Desconto (R$)', 'Total (R$)', 'Valor Recebido (R$)', 'Troco (R$)', 'Parcelas', 'Observações'],
+      ..._dadosVendasLista.map(function(v) {
+        var statusLabel = v.status === 'concluida' ? 'Concluída' : v.status === 'cancelada' ? 'Cancelada' : v.status;
+        return [
+          v.numero_venda || '',
+          v.criado_em ? new Date(v.criado_em).toLocaleString('pt-BR') : '',
+          statusLabel,
+          (v.cliente && v.cliente.nome) ? v.cliente.nome : '—',
+          (v.vendedor && v.vendedor.nome) ? v.vendedor.nome : '—',
+          nomePagamento(v.forma_pagamento || ''),
+          n(v.subtotal || v.total),
+          n(v.desconto),
+          n(v.total),
+          n(v.valor_recebido),
+          n(v.troco),
+          v.parcelas || 1,
+          v.observacoes || '',
+        ];
+      }),
+    ];
+    const wsVendas = XLSX.utils.aoa_to_sheet(vendasRows);
+    for (var r = 2; r <= vendasRows.length; r++) {
+      ['G','H','I','J','K'].forEach(function(c){ _moeda(wsVendas, c+r); });
+      _int(wsVendas, 'L' + r);
+    }
+    wsVendas['!cols'] = [{wch:10},{wch:18},{wch:11},{wch:22},{wch:18},{wch:16},{wch:16},{wch:16},{wch:16},{wch:18},{wch:12},{wch:9},{wch:24}];
+    XLSX.utils.book_append_sheet(wb, wsVendas, 'Vendas Detalhadas');
+
+    // ── Aba 7: Estoque com Alertas ─────────────────
+    const alertasRows = [
+      ['Produto', 'Categoria', 'Unidade', 'Estoque Atual', 'Estoque Mínimo', 'Status'],
+      ..._dadosAlertas.map(function(p) {
+        var status = p.estoque_atual <= 0 ? 'Zerado' : 'Baixo';
+        return [
+          p.nome || '',
+          p.categoria || '—',
+          p.unidade || '',
+          n(p.estoque_atual),
+          n(p.estoque_minimo),
+          status,
+        ];
+      }),
+    ];
+    if (_dadosAlertas.length === 0) {
+      alertasRows.push(['Nenhum produto com estoque baixo ou zerado.']);
+    }
+    const wsAlertas = XLSX.utils.aoa_to_sheet(alertasRows);
+    for (var r = 2; r <= alertasRows.length; r++) {
+      _fmtN(wsAlertas, 'D' + r, '0.000');
+      _fmtN(wsAlertas, 'E' + r, '0.000');
+    }
+    wsAlertas['!cols'] = [{wch:34},{wch:18},{wch:9},{wch:14},{wch:16},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, wsAlertas, 'Alertas de Estoque');
+
+    // ── Aba 8: Todos os Produtos Vendidos ─────────
+    const totFatTP  = _dadosTodosProd.reduce(function(s,p){ return s+p.faturamento; }, 0);
+    const totQtdTP  = _dadosTodosProd.reduce(function(s,p){ return s+p.quantidade_total; }, 0);
+    const totCusTP  = _dadosTodosProd.reduce(function(s,p){ return s+n(p.custo_total); }, 0);
+    const totLucTP  = _dadosTodosProd.reduce(function(s,p){ return s+n(p.lucro); }, 0);
+    const todosRows = [
+      ['#', 'Produto', 'Unid.', 'Qtd Vendida', 'Faturamento (R$)', '% Fat.', 'Custo Total (R$)', 'Lucro (R$)', 'Margem %'],
+      ..._dadosTodosProd.map(function(p, i) {
+        return [
+          i + 1, p.nome, p.unidade, p.quantidade_total,
+          p.faturamento,
+          totFatTP > 0 ? p.faturamento / totFatTP : 0,
+          n(p.custo_total),
+          n(p.lucro),
+          n(p.margem_pct) / 100,
+        ];
+      }),
+      ['TOTAL', '', '', totQtdTP, totFatTP, 1, totCusTP, totLucTP, totFatTP > 0 ? totLucTP / totFatTP : 0],
+    ];
+    if (_dadosTodosProd.length === 0) todosRows.push(['Nenhum produto vendido no período.']);
+    const wsTodos = XLSX.utils.aoa_to_sheet(todosRows);
+    for (var r = 2; r <= todosRows.length; r++) {
+      _int(wsTodos, 'D' + r);
+      ['E','G','H'].forEach(function(c){ _moeda(wsTodos, c+r); });
+      ['F','I'].forEach(function(c){ _pct(wsTodos, c+r); });
+    }
+    wsTodos['!cols'] = [{wch:4},{wch:34},{wch:7},{wch:13},{wch:18},{wch:8},{wch:18},{wch:16},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, wsTodos, 'Todos os Produtos');
+
+    // ── Aba 9: Vendas Diárias por Produto ──────────
+    if (_dadosDiariosProd.length > 0) {
+      // Coleta todos os dias únicos ordenados
+      var diasUnicos = [];
+      _dadosDiariosProd.forEach(function(p) { Object.keys(p.dias).forEach(function(d){ if(!diasUnicos.includes(d)) diasUnicos.push(d); }); });
+      diasUnicos.sort();
+      var cabDiario = ['Produto', 'Unid.'].concat(diasUnicos.map(function(d){ return new Date(d+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); })).concat(['Total Mês']);
+      var diarioRows = [cabDiario];
+      _dadosDiariosProd.sort(function(a,b){ return a.nome.localeCompare(b.nome); }).forEach(function(p) {
+        var totalProd = 0;
+        var row = [p.nome, p.unidade];
+        diasUnicos.forEach(function(d){ var q = p.dias[d] || 0; totalProd += q; row.push(q || ''); });
+        row.push(totalProd);
+        diarioRows.push(row);
+      });
+      // Linha de totais por dia
+      var totRow = ['TOTAL', ''];
+      diasUnicos.forEach(function(d){ totRow.push(_dadosDiariosProd.reduce(function(s,p){ return s+(p.dias[d]||0); },0)); });
+      totRow.push(_dadosDiariosProd.reduce(function(s,p){ return s+Object.values(p.dias).reduce(function(a,b){return a+b;},0); },0));
+      diarioRows.push(totRow);
+      var wsDiario = XLSX.utils.aoa_to_sheet(diarioRows);
+      var diarioCols = [{wch:34},{wch:7}];
+      diasUnicos.forEach(function(){ diarioCols.push({wch:8}); });
+      diarioCols.push({wch:11});
+      wsDiario['!cols'] = diarioCols;
+      XLSX.utils.book_append_sheet(wb, wsDiario, 'Vend_Diarias_Prod');
+    }
+
+    // ── Aba 10: Vendas Semanais por Produto ─────────
+    if (_dadosDiariosProd.length > 0) {
+      var diasTodos = [];
+      _dadosDiariosProd.forEach(function(p){ Object.keys(p.dias).forEach(function(d){ if(!diasTodos.includes(d)) diasTodos.push(d); }); });
+      diasTodos.sort();
+      // Determina semanas (agrupa dias em blocos de 7 a partir do primeiro dia do período)
+      var semanas = [];
+      if (diasTodos.length > 0) {
+        var base = new Date(diasTodos[0]+'T12:00');
+        diasTodos.forEach(function(d){
+          var dt = new Date(d+'T12:00');
+          var semIdx = Math.floor((dt - base) / (7*24*3600*1000));
+          if (!semanas[semIdx]) semanas[semIdx] = [];
+          semanas[semIdx].push(d);
+        });
+      }
+      var nSem = semanas.filter(Boolean).length;
+      var cabSem = ['Produto','Unid.'];
+      for(var si=0;si<nSem;si++) cabSem.push('Semana '+(si+1));
+      cabSem.push('Total');
+      var semRows = [cabSem];
+      _dadosDiariosProd.sort(function(a,b){return a.nome.localeCompare(b.nome);}).forEach(function(p){
+        var row=[p.nome,p.unidade];
+        var tot=0;
+        for(var si=0;si<nSem;si++){
+          var dias_s=semanas[si]||[];
+          var qtd=dias_s.reduce(function(s,d){return s+(p.dias[d]||0);},0);
+          tot+=qtd; row.push(qtd||'');
+        }
+        row.push(tot); semRows.push(row);
+      });
+      var totSem=['TOTAL',''];
+      for(var si=0;si<nSem;si++){
+        var dias_s=semanas[si]||[];
+        totSem.push(_dadosDiariosProd.reduce(function(s,p){return s+dias_s.reduce(function(a,d){return a+(p.dias[d]||0);},0);},0));
+      }
+      totSem.push(_dadosDiariosProd.reduce(function(s,p){return s+Object.values(p.dias).reduce(function(a,b){return a+b;},0);},0));
+      semRows.push(totSem);
+      var wsSem = XLSX.utils.aoa_to_sheet(semRows);
+      var semCols=[{wch:34},{wch:7}];
+      for(var si=0;si<nSem;si++) semCols.push({wch:11});
+      semCols.push({wch:11});
+      wsSem['!cols']=semCols;
+      XLSX.utils.book_append_sheet(wb, wsSem, 'Vend_Semanais_Prod');
+    }
+
+    // ── Aba 11: Top Produtos Estratégico ────────────
+    if (_dadosTodosProd.length > 0) {
+      var top20qty  = _dadosTodosProd.slice().sort(function(a,b){return b.quantidade_total-a.quantidade_total;}).slice(0,20);
+      var top20fat  = _dadosTodosProd.slice().sort(function(a,b){return b.faturamento-a.faturamento;}).slice(0,20);
+      var top20mar  = _dadosTodosProd.slice().sort(function(a,b){return b.margem_pct-a.margem_pct;}).slice(0,20);
+      var topRows2  = [['TOP 20 — MAIOR QUANTIDADE VENDIDA'],['#','Produto','Unid.','Qtd Vendida','Faturamento (R$)','Margem %']];
+      top20qty.forEach(function(p,i){ topRows2.push([i+1,p.nome,p.unidade,p.quantidade_total,p.faturamento,n(p.margem_pct)/100]); });
+      topRows2.push([]);
+      topRows2.push(['TOP 20 — MAIOR FATURAMENTO'],['#','Produto','Unid.','Qtd Vendida','Faturamento (R$)','Margem %']);
+      top20fat.forEach(function(p,i){ topRows2.push([i+1,p.nome,p.unidade,p.quantidade_total,p.faturamento,n(p.margem_pct)/100]); });
+      topRows2.push([]);
+      topRows2.push(['TOP 20 — MAIOR MARGEM'],['#','Produto','Unid.','Qtd Vendida','Faturamento (R$)','Margem %']);
+      top20mar.forEach(function(p,i){ topRows2.push([i+1,p.nome,p.unidade,p.quantidade_total,p.faturamento,n(p.margem_pct)/100]); });
+      var wsTopStrat = XLSX.utils.aoa_to_sheet(topRows2);
+      wsTopStrat['!cols']=[{wch:4},{wch:34},{wch:7},{wch:13},{wch:18},{wch:10}];
+      // Formato numérico nas linhas de dados
+      [3,top20qty.length+5,top20qty.length+top20fat.length+8].forEach(function(inicio){
+        for(var r=inicio;r<inicio+(r===3?top20qty.length:r<top20qty.length+6?top20fat.length:top20mar.length);r++){
+          _int(wsTopStrat,'D'+(r+1)); _moeda(wsTopStrat,'E'+(r+1)); _pct(wsTopStrat,'F'+(r+1));
+        }
+      });
+      XLSX.utils.book_append_sheet(wb, wsTopStrat, 'Top_Estrategico');
+    }
+
+    // ── Aba 12: Produtos em Queda ───────────────────
+    var emQueda = _dadosComparativo.filter(function(p){ return p.variacao_pct < -5 && p.qtd_anterior > 0; })
+                    .sort(function(a,b){ return a.variacao_pct - b.variacao_pct; });
+    var quedaRows = [['Produto','Qtd Período Anterior','Qtd Período Atual','Variação %','Fat Anterior (R$)','Fat Atual (R$)']];
+    if (emQueda.length === 0) quedaRows.push(['Nenhum produto em queda significativa no período.']);
+    emQueda.forEach(function(p){
+      quedaRows.push([p.nome, p.qtd_anterior, p.qtd_atual, p.variacao_pct/100, p.fat_anterior, p.fat_atual]);
+    });
+    var wsQueda = XLSX.utils.aoa_to_sheet(quedaRows);
+    for(var r=2;r<=quedaRows.length;r++){ _pct(wsQueda,'D'+r); _moeda(wsQueda,'E'+r); _moeda(wsQueda,'F'+r); }
+    wsQueda['!cols']=[{wch:34},{wch:22},{wch:20},{wch:12},{wch:20},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, wsQueda, 'Produtos_em_Queda');
+
+    // ── Aba 13: Produtos em Crescimento ─────────────
+    var emAlta = _dadosComparativo.filter(function(p){ return p.variacao_pct > 5 && p.qtd_anterior > 0; })
+                   .sort(function(a,b){ return b.variacao_pct - a.variacao_pct; });
+    var altaRows = [['Produto','Qtd Período Anterior','Qtd Período Atual','Variação %','Fat Anterior (R$)','Fat Atual (R$)']];
+    if (emAlta.length === 0) altaRows.push(['Nenhum produto em crescimento significativo no período.']);
+    emAlta.forEach(function(p){
+      altaRows.push([p.nome, p.qtd_anterior, p.qtd_atual, p.variacao_pct/100, p.fat_anterior, p.fat_atual]);
+    });
+    var wsAlta = XLSX.utils.aoa_to_sheet(altaRows);
+    for(var r=2;r<=altaRows.length;r++){ _pct(wsAlta,'D'+r); _moeda(wsAlta,'E'+r); _moeda(wsAlta,'F'+r); }
+    wsAlta['!cols']=[{wch:34},{wch:22},{wch:20},{wch:12},{wch:20},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, wsAlta, 'Produtos_em_Alta');
+
+    // ── Aba 14: Produtos sem Giro ───────────────────
+    var semGiroRows = [['Produto','Unid.','Estoque Atual','Última Venda','Dias sem Venda']];
+    if (_dadosSemGiro.length === 0) semGiroRows.push(['Todos os produtos venderam nos últimos 30 dias.']);
+    _dadosSemGiro.forEach(function(p){
+      semGiroRows.push([p.nome, p.unidade, p.estoque_atual, p.ultima_venda, p.dias_sem_venda != null ? p.dias_sem_venda : 'Nunca vendido']);
+    });
+    var wsSemGiro = XLSX.utils.aoa_to_sheet(semGiroRows);
+    for(var r=2;r<=semGiroRows.length;r++){ _fmtN(wsSemGiro,'C'+r,'0.000'); }
+    wsSemGiro['!cols']=[{wch:34},{wch:7},{wch:14},{wch:16},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, wsSemGiro, 'Produtos_Sem_Giro');
+
+    // ── Download: PC e Android ─────────────────────
+    try {
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob  = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+      if (navigator.share && navigator.canShare) {
+        const file = new File([blob], nomeArq, { type: blob.type });
+        if (navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: 'Relatório ' + loja })
+            .catch(function(){ _baixarBlob(blob, nomeArq); });
+          showToast('Relatório gerado!');
+          return;
+        }
+      }
+      _baixarBlob(blob, nomeArq);
+      showToast('Relatório exportado com sucesso!');
+    } catch(e) {
+      showToast('Erro ao gerar: ' + e.message, 'error');
+    }
+  }
+
+  function _baixarBlob(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  // ── Todos os Produtos Vendidos ────────────────
+  function renderTodosProdutos(lista) {
+    const tbody  = document.getElementById('tb-todos-prod-body');
+    const tfoot  = document.getElementById('tfoot-todos-prod');
+    const badge  = document.getElementById('badge-total-prods');
+    if (!lista || lista.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Nenhum produto vendido no período</td></tr>';
+      tfoot.innerHTML = '';
+      badge.textContent = '0 produtos';
+      return;
+    }
+    badge.textContent = lista.length + ' produto' + (lista.length !== 1 ? 's' : '');
+    tbody.innerHTML = lista.map(function(p, i) {
+      var lucro  = p.lucro != null ? p.lucro : 0;
+      var margem = p.margem_pct != null ? p.margem_pct : 0;
+      return '<tr>' +
+        '<td><span class="badge ' + (i < 3 ? 'bg-warning text-dark' : 'bg-secondary') + '">' + (i+1) + 'º</span></td>' +
+        '<td class="fw-semibold">' + p.nome + '</td>' +
+        '<td class="text-end">' + p.quantidade_total + ' ' + (p.unidade || '') + '</td>' +
+        '<td class="text-end">' + fmtMoeda(p.faturamento) + '</td>' +
+        '<td class="text-end">' + fmtMoeda(p.custo_total != null ? p.custo_total : 0) + '</td>' +
+        '<td class="text-end fw-bold ' + (lucro >= 0 ? 'text-success' : 'text-danger') + '">' + fmtMoeda(lucro) + '</td>' +
+        '<td class="text-end"><span class="badge ' + (margem >= 30 ? 'bg-success' : margem >= 10 ? 'bg-warning text-dark' : 'bg-danger') + '">' + margem.toFixed(1) + '%</span></td>' +
+      '</tr>';
+    }).join('');
+    var totFat  = lista.reduce(function(s,p){ return s + p.faturamento; }, 0);
+    var totCus  = lista.reduce(function(s,p){ return s + (p.custo_total || 0); }, 0);
+    var totLuc  = lista.reduce(function(s,p){ return s + (p.lucro || 0); }, 0);
+    var totQtd  = lista.reduce(function(s,p){ return s + p.quantidade_total; }, 0);
+    var totMarg = totFat > 0 ? (totLuc / totFat * 100) : 0;
+    tfoot.innerHTML = '<tr class="table-success">' +
+      '<td colspan="2" class="fw-bold">TOTAL (' + lista.length + ' produtos)</td>' +
+      '<td class="text-end fw-bold">' + totQtd.toFixed(3).replace(/\.?0+$/,'') + '</td>' +
+      '<td class="text-end fw-bold">' + fmtMoeda(totFat) + '</td>' +
+      '<td class="text-end fw-bold">' + fmtMoeda(totCus) + '</td>' +
+      '<td class="text-end fw-bold text-success">' + fmtMoeda(totLuc) + '</td>' +
+      '<td class="text-end fw-bold">' + totMarg.toFixed(1) + '%</td>' +
+    '</tr>';
+  }
+
+  function filtrarTodosProd(termo) {
+    if (!termo || termo.trim() === '') {
+      renderTodosProdutos(_dadosTodosProd);
+      return;
+    }
+    var t = termo.toLowerCase();
+    var filtrado = _dadosTodosProd.filter(function(p) {
+      return p.nome.toLowerCase().indexOf(t) !== -1;
+    });
+    renderTodosProdutos(filtrado);
+  }
+
+  // ── Comissões ──────────────────────────────────
+  async function carregarComissoes() {
+    const { inicio, fim } = getDatas();
+    const params = { data_inicio: inicio, data_fim: fim };
+    const euAdmin = isAdmin();
+
+    if (euAdmin) {
+      // Admin: resumo por vendedor
+      document.getElementById('secao-comissoes').style.display = '';
+      document.getElementById('secao-minhas-comissoes').style.display = 'none';
+      try {
+        const resumo = await api.comissoes.resumo(params);
+        const tb = document.getElementById('tb-comissoes');
+        if (!resumo.length) {
+          tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Nenhuma comissão no período</td></tr>';
+          document.getElementById('comissoes-kpis').innerHTML = '';
+          return;
+        }
+        const totPend = resumo.reduce((s, r) => s + r.comissoes_pendentes, 0);
+        const totPago = resumo.reduce((s, r) => s + r.comissoes_pagas, 0);
+        document.getElementById('comissoes-kpis').innerHTML =
+          `<span class="badge bg-warning text-dark me-1"><i class="bi bi-clock me-1"></i>A pagar: ${fmtMoeda(totPend)}</span>` +
+          `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Pago: ${fmtMoeda(totPago)}</span>`;
+        tb.innerHTML = resumo.map(r => `<tr>
+          <td class="fw-semibold">${r.vendedor_nome}</td>
+          <td class="text-end">${r.comissao_pct.toFixed(1)}%</td>
+          <td class="text-end">${fmtMoeda(r.total_vendas)}</td>
+          <td class="text-end fw-semibold">${fmtMoeda(r.total_comissao)}</td>
+          <td class="text-end fw-semibold ${r.comissoes_pendentes > 0 ? 'text-warning' : 'text-muted'}">${fmtMoeda(r.comissoes_pendentes)}</td>
+          <td class="text-end text-success">${fmtMoeda(r.comissoes_pagas)}</td>
+        </tr>`).join('');
+      } catch(e) {}
+    } else {
+      // Operador: só vê as próprias comissões
+      document.getElementById('secao-comissoes').style.display = 'none';
+      document.getElementById('secao-minhas-comissoes').style.display = '';
+      document.getElementById('col-acao-com').style.display = 'none';
+      try {
+        const lista = await api.comissoes.minha(params);
+        const tb = document.getElementById('tb-minhas-com');
+        const tf = document.getElementById('tfoot-minhas-com');
+        if (!lista.length) {
+          tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma comissão no período</td></tr>';
+          tf.innerHTML = '';
+          return;
+        }
+        tb.innerHTML = lista.map(c => `<tr>
+          <td>${new Date(c.criado_em).toLocaleDateString('pt-BR')}</td>
+          <td>#${c.venda_id}</td>
+          <td class="text-end">${fmtMoeda(c.valor_venda)}</td>
+          <td class="text-end">${c.comissao_pct.toFixed(1)}%</td>
+          <td class="text-end fw-semibold">${fmtMoeda(c.valor_comissao)}</td>
+          <td><span class="badge ${c.status === 'pago' ? 'bg-success' : 'bg-warning text-dark'}">${c.status === 'pago' ? 'Pago' : 'Pendente'}</span></td>
+        </tr>`).join('');
+        const totCom   = lista.reduce((s, c) => s + c.valor_comissao, 0);
+        const totPend  = lista.filter(c => c.status === 'pendente').reduce((s, c) => s + c.valor_comissao, 0);
+        const totPago  = lista.filter(c => c.status === 'pago').reduce((s, c) => s + c.valor_comissao, 0);
+        tf.innerHTML = `<tr>
+          <td colspan="4">Total</td>
+          <td class="text-end">${fmtMoeda(totCom)}</td>
+          <td><span class="badge bg-warning text-dark me-1">${fmtMoeda(totPend)}</span><span class="badge bg-success">${fmtMoeda(totPago)}</span></td>
+        </tr>`;
+      } catch(e) {}
+    }
+  }
+
+  // Datas iniciais
+  document.getElementById('dt-inicio').value = inicioMesISO();
+  document.getElementById('dt-fim').value = dataHojeISO();
+
+  // Popula select de vendedores
+  (async () => {
+    try {
+      const vends = await api.vendedores.listar();
+      const sel = document.getElementById('sel-vendedor');
+      vends.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.id;
+        opt.textContent = v.nome;
+        sel.appendChild(opt);
+      });
+    } catch(e) {}
+  })();
+
+  carregar();
+</script>
+</body>
+</html>

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clientes - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2><i class="bi bi-people me-2"></i>Clientes</h2>
+      <p>Cadastro de clientes</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-outline-secondary btn-sm" onclick="baixarModelo()" title="Baixar planilha modelo para importação">
+        <i class="bi bi-file-earmark-arrow-down me-1"></i>Modelo
+      </button>
+      <button class="btn btn-outline-success btn-sm" onclick="exportarClientes()">
+        <i class="bi bi-file-earmark-excel me-1"></i>Exportar
+      </button>
+      <button class="btn btn-outline-primary btn-sm" onclick="document.getElementById('input-importar').click()">
+        <i class="bi bi-upload me-1"></i>Importar
+      </button>
+      <input type="file" id="input-importar" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarClientes(this)">
+      <button class="btn btn-pdv" onclick="abrirModal()"><i class="bi bi-plus-lg me-1"></i>Novo Cliente</button>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body pb-2">
+      <input type="text" id="busca" class="form-control" placeholder="Buscar por nome, CPF/CNPJ ou telefone..." oninput="buscar()">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>CPF/CNPJ</th>
+            <th>Telefone</th>
+            <th>E-mail</th>
+            <th>Cidade</th>
+            <th>Limite Fiado</th>
+            <th class="text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-clientes">
+          <tr><td colspan="7" class="text-center py-3 text-muted">Carregando...</td></tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cadastro -->
+<div class="modal fade" id="modal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-titulo">Novo Cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="c-id">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label fw-semibold">Nome *</label>
+            <input type="text" id="c-nome" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">CPF/CNPJ</label>
+            <input type="text" id="c-cpf" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Telefone</label>
+            <input type="text" id="c-tel" class="form-control" placeholder="(00) 00000-0000" oninput="_mascaraTel(this)" maxlength="15">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">E-mail</label>
+            <input type="email" id="c-email" class="form-control">
+          </div>
+
+          <!-- Endereço -->
+          <div class="col-12"><hr class="my-1"><label class="form-label fw-semibold text-muted small"><i class="bi bi-geo-alt me-1"></i>Endereço</label></div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">CEP</label>
+            <input type="text" id="c-cep" class="form-control" placeholder="00000-000" oninput="buscarCep(this.value)">
+          </div>
+          <div class="col-md-7">
+            <label class="form-label fw-semibold">Logradouro / Rua</label>
+            <input type="text" id="c-end" class="form-control" placeholder="Rua, Av., Travessa...">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">Número</label>
+            <input type="text" id="c-num" class="form-control" placeholder="Nº">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Complemento</label>
+            <input type="text" id="c-comp" class="form-control" placeholder="Apto, Bloco...">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Bairro</label>
+            <input type="text" id="c-bairro" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Cidade</label>
+            <input type="text" id="c-cidade" class="form-control">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">UF</label>
+            <select id="c-estado" class="form-select">
+              <option value="">--</option>
+              <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+              <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+              <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+              <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+              <option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+              <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+              <option>SP</option><option>SE</option><option>TO</option>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Limite de Fiado</label>
+            <div class="input-group">
+              <span class="input-group-text">R$</span>
+              <input type="text" inputmode="numeric" id="c-limite" class="form-control"
+                style="text-align:right" placeholder="0,00" data-centavos="0"
+                oninput="_calcLimite(this)">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-pdv" onclick="salvar()"><i class="bi bi-check-lg me-1"></i>Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="/js/api.js?v=2"></script><script src="/js/utils.js?v=2"></script><script src="/js/components.js?v=2"></script>
+<script>
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/clientes.html');
+  if (!requirePermissao('clientes')) throw '';
+  const modal = new bootstrap.Modal(document.getElementById('modal'));
+  let editandoId = null;
+  let _limiteFiadoOriginal = 0;
+
+  // Bloqueia campo de limite para não-admin
+  if (!isAdmin()) {
+    const inp = document.getElementById('c-limite');
+    inp.disabled = true;
+    inp.title = 'Apenas o Admin pode alterar o limite de fiado';
+    const label = inp.closest('.col-md-4').querySelector('label');
+    if (label) label.innerHTML += ' <small class="text-muted">(somente Admin)</small>';
+  }
+  let buscaTimer;
+  let clientesCache = [];
+
+  async function carregar(busca = '') {
+    const list = await api.clientes.listar(busca);
+    clientesCache = list;
+    const tb = document.getElementById('tabela-clientes');
+    tb.innerHTML = list.length === 0
+      ? '<tr><td colspan="7" class="text-center py-3 text-muted">Nenhum cliente</td></tr>'
+      : list.map((c, idx) => `<tr>
+          <td class="fw-semibold">${c.nome}</td>
+          <td>${c.cpf_cnpj || '-'}</td>
+          <td>${c.telefone || '-'}</td>
+          <td>${c.email || '-'}</td>
+          <td>${c.cidade ? `${c.cidade}${c.estado ? '/' + c.estado : ''}` : '-'}</td>
+          <td class="text-muted">${c.limite_fiado > 0 ? fmtMoeda(c.limite_fiado) : '-'}</td>
+          <td class="text-center">
+            <button class="btn btn-sm btn-outline-primary me-1" onclick="editar(clientesCache[${idx}])"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deletar(${c.id})"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>`).join('');
+  }
+
+  function buscar() {
+    clearTimeout(buscaTimer);
+    buscaTimer = setTimeout(() => carregar(document.getElementById('busca').value), 300);
+  }
+
+  function _calcLimite(inp) {
+    const digits = inp.value.replace(/\D/g, '');
+    const centavos = Math.min(parseInt(digits || '0'), 999999999);
+    inp.dataset.centavos = centavos;
+    const formatted = centavos > 0 ? (centavos / 100).toFixed(2).replace('.', ',') : '';
+    if (inp.value !== formatted) {
+      inp.value = formatted;
+      try { inp.setSelectionRange(formatted.length, formatted.length); } catch(_) {}
+    }
+  }
+
+  function abrirModal() {
+    editandoId = null;
+    document.getElementById('modal-titulo').textContent = 'Novo Cliente';
+    ['c-nome','c-cpf','c-tel','c-email','c-cep','c-end','c-num','c-comp','c-bairro','c-cidade'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('c-estado').value = '';
+    const elLim = document.getElementById('c-limite');
+    elLim.dataset.centavos = '0'; elLim.value = '';
+    modal.show();
+  }
+
+  function editar(c) {
+    editandoId = c.id;
+    document.getElementById('modal-titulo').textContent = 'Editar Cliente';
+    document.getElementById('c-nome').value = c.nome;
+    document.getElementById('c-cpf').value = c.cpf_cnpj || '';
+    document.getElementById('c-tel').value = c.telefone || '';
+    document.getElementById('c-email').value = c.email || '';
+    document.getElementById('c-cep').value = c.cep || '';
+    document.getElementById('c-end').value = c.endereco || '';
+    document.getElementById('c-num').value = c.numero || '';
+    document.getElementById('c-comp').value = c.complemento || '';
+    document.getElementById('c-bairro').value = c.bairro || '';
+    document.getElementById('c-cidade').value = c.cidade || '';
+    document.getElementById('c-estado').value = c.estado || '';
+    const elLim2 = document.getElementById('c-limite');
+    const centavosLim = Math.round((c.limite_fiado || 0) * 100);
+    elLim2.dataset.centavos = centavosLim;
+    elLim2.value = centavosLim > 0 ? (centavosLim / 100).toFixed(2).replace('.', ',') : '';
+    _limiteFiadoOriginal = c.limite_fiado || 0;
+    modal.show();
+  }
+
+  async function buscarCep(cep) {
+    cep = cep.replace(/\D/g,'');
+    if (cep.length !== 8) return;
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const d = await r.json();
+      if (d.erro) return;
+      document.getElementById('c-end').value = d.logradouro || '';
+      document.getElementById('c-bairro').value = d.bairro || '';
+      document.getElementById('c-cidade').value = d.localidade || '';
+      document.getElementById('c-estado').value = d.uf || '';
+      document.getElementById('c-num').focus();
+    } catch(_) {}
+  }
+
+  async function salvar() {
+    const nome = document.getElementById('c-nome').value.trim();
+    if (!nome) { showToast('Nome é obrigatório', 'error'); return; }
+    const data = {
+      nome,
+      cpf_cnpj:    document.getElementById('c-cpf').value.trim() || null,
+      telefone:    document.getElementById('c-tel').value.trim() || null,
+      email:       document.getElementById('c-email').value.trim() || null,
+      cep:         document.getElementById('c-cep').value.trim() || null,
+      endereco:    document.getElementById('c-end').value.trim() || null,
+      numero:      document.getElementById('c-num').value.trim() || null,
+      complemento: document.getElementById('c-comp').value.trim() || null,
+      bairro:      document.getElementById('c-bairro').value.trim() || null,
+      cidade:      document.getElementById('c-cidade').value.trim() || null,
+      estado:      document.getElementById('c-estado').value || null,
+      limite_fiado: isAdmin() ? (parseInt(document.getElementById('c-limite').dataset.centavos || '0') / 100) : _limiteFiadoOriginal,
+    };
+    try {
+      if (editandoId) await api.clientes.atualizar(editandoId, data);
+      else await api.clientes.criar(data);
+      modal.hide(); showToast('Cliente salvo!'); carregar();
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  async function deletar(id) {
+    if (!confirmDialog('Desativar este cliente?')) return;
+    try { await api.clientes.deletar(id); showToast('Cliente desativado'); carregar(); }
+    catch(e) { showToast(e.message, 'error'); }
+  }
+
+  carregar();
+
+  // ── Exportar ────────────────────────────────────────
+  async function exportarClientes() {
+    const lista = await api.clientes.listar('');
+    const linhas = lista.map(c => ({
+      'Nome':          c.nome || '',
+      'CPF/CNPJ':      c.cpf_cnpj || '',
+      'Telefone':      c.telefone || '',
+      'Email':         c.email || '',
+      'CEP':           c.cep || '',
+      'Endereço':      c.endereco || '',
+      'Número':        c.numero || '',
+      'Complemento':   c.complemento || '',
+      'Bairro':        c.bairro || '',
+      'Cidade':        c.cidade || '',
+      'UF':            c.estado || '',
+      'Limite Fiado':  c.limite_fiado || 0,
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(linhas), 'Clientes');
+    XLSX.writeFile(wb, 'clientes_fastpos.xlsx');
+  }
+
+  // ── Modelo em branco ────────────────────────────────
+  function baixarModelo() {
+    const modelo = [{ 'Nome':'', 'CPF/CNPJ':'', 'Telefone':'', 'Email':'', 'CEP':'', 'Endereço':'', 'Número':'', 'Complemento':'', 'Bairro':'', 'Cidade':'', 'UF':'', 'Limite Fiado':0 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(modelo), 'Clientes');
+    XLSX.writeFile(wb, 'modelo_clientes.xlsx');
+  }
+
+  // ── Importar ────────────────────────────────────────
+  function _norm(s) { return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+  function _mapCol(headers) {
+    const map = {};
+    const defs = {
+      nome:         ['nome','name','cliente'],
+      cpf_cnpj:     ['cpf','cnpj','cpf/cnpj','cpf_cnpj','documento'],
+      telefone:     ['telefone','celular','fone','tel','phone'],
+      email:        ['email','e-mail','mail'],
+      cep:          ['cep','cod postal'],
+      endereco:     ['endereco','endereço','rua','logradouro','rua/av'],
+      numero:       ['numero','número','nº','num'],
+      complemento:  ['complemento','comp'],
+      bairro:       ['bairro'],
+      cidade:       ['cidade','city','municipio'],
+      estado:       ['estado','uf','estado/uf'],
+      limite_fiado: ['limite fiado','limite','fiado','limite_fiado'],
+    };
+    headers.forEach(h => {
+      const hn = _norm(h);
+      for (const [campo, aliases] of Object.entries(defs)) {
+        if (aliases.includes(hn)) { map[h] = campo; break; }
+      }
+    });
+    return map;
+  }
+
+  async function importarClientes(input) {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    const buf = await file.arrayBuffer();
+    const wb  = XLSX.read(buf, { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+    if (!rows.length) { showToast('Planilha vazia ou sem dados', 'error'); return; }
+
+    const colMap = _mapCol(Object.keys(rows[0]));
+    if (!Object.values(colMap).includes('nome')) {
+      showToast('Coluna "Nome" não encontrada. Use o modelo para ver as colunas esperadas.', 'error');
+      return;
+    }
+
+    let ok = 0, erros = 0, duplicados = 0;
+    for (const row of rows) {
+      const d = {};
+      for (const [col, campo] of Object.entries(colMap)) {
+        d[campo] = String(row[col] ?? '').trim() || null;
+      }
+      if (d.limite_fiado) d.limite_fiado = parseFloat(String(d.limite_fiado).replace(',','.')) || 0;
+      if (!d.nome) continue;
+      try {
+        await api.clientes.criar(d);
+        ok++;
+      } catch(e) {
+        if (e.message && e.message.toLowerCase().includes('duplicad')) duplicados++;
+        else erros++;
+      }
+    }
+    let msg = `${ok} cliente(s) importado(s)`;
+    if (duplicados) msg += `, ${duplicados} já existiam (ignorados)`;
+    if (erros) msg += `, ${erros} com erro`;
+    showToast(msg, erros > 0 ? 'error' : 'success');
+    carregar();
+  }
+</script>
+</body>
+</html>

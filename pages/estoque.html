@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estoque - FastPOS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/app.css?v=3">
+  <style>
+    .mov-entrada  { border-left: 3px solid #198754; }
+    .mov-venda    { border-left: 3px solid #dc3545; }
+    .mov-ajuste   { border-left: 3px solid #fd7e14; }
+    .mov-saida    { border-left: 3px solid #6c757d; }
+    .hora-destaque { font-size:.78rem; font-weight:700; color:#495057; }
+    .data-linha   { font-size:.72rem; color:#6c757d; }
+    @media (max-width: 576px) {
+      #abas { flex-wrap: wrap !important; }
+      #abas .nav-link { font-size: .78rem; padding: .35rem .6rem; }
+      #abas .nav-link i { display: none; }
+    }
+    @media print {
+      .sidebar, #sidebar-mount, .page-header, #abas,
+      #aba-visao, #aba-entrada, #aba-ajuste, #aba-saida, #aba-alertas,
+      #banner-alertas, .filtros-hist, .no-print { display:none !important; }
+      #aba-historico { display:block !important; }
+      .main-content { padding: 0 !important; margin: 0 !important; }
+      .card { border: none !important; box-shadow: none !important; }
+      body { font-size: 11px; }
+      .print-header { display:block !important; }
+    }
+    .print-header { display:none; }
+
+    /* Cabeçalho sticky das tabelas: z-index baixo para não sobrepor a sidebar */
+    #aba-entrada .sticky-top,
+    #aba-ajuste  .sticky-top,
+    #aba-saida   .sticky-top {
+      z-index: 1;
+      background: #fff;
+    }
+    /* Variações recolhíveis */
+    .chev-var { transition: transform .18s; font-size: .72rem; color: #aaa; display:inline-block; }
+    .chev-var.aberto { transform: rotate(90deg); }
+    tr.prod-pai { cursor: pointer; }
+    tr.prod-pai:hover td { background: rgba(0,0,0,.03); }
+  </style>
+</head>
+<body>
+<div id="sidebar-mount"></div>
+<div class="main-content">
+  <div class="page-header">
+    <h2><i class="bi bi-archive me-2"></i>Controle de Estoque</h2>
+    <p>Entradas, ajustes e histórico de movimentações</p>
+  </div>
+
+  <!-- Alertas -->
+  <div id="banner-alertas" class="alert alert-warning d-none mb-2 py-2 px-3" style="font-size:.82rem;">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+    <strong id="qtd-alertas">0</strong> produto(s) abaixo do mínimo.
+    <a href="#" onclick="abaAlertas()" class="alert-link ms-1">Ver lista</a>
+  </div>
+
+  <!-- Abas -->
+  <ul class="nav nav-tabs mb-3" id="abas">
+    <li class="nav-item"><a class="nav-link active" href="#" onclick="mudarAba('visao',this)"><i class="bi bi-grid-3x3-gap me-1"></i>Visão Geral</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" onclick="mudarAba('entrada',this)"><i class="bi bi-box-arrow-in-down me-1"></i>Entrada</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" onclick="mudarAba('ajuste',this)"><i class="bi bi-sliders me-1"></i>Ajuste</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" onclick="mudarAba('saida',this)"><i class="bi bi-box-arrow-up me-1"></i>Saída</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" onclick="mudarAba('historico',this)"><i class="bi bi-clock-history me-1"></i>Histórico</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" id="aba-alertas-link" onclick="mudarAba('alertas',this)"><i class="bi bi-exclamation-triangle me-1"></i>Alertas</a></li>
+  </ul>
+
+  <!-- Visão Geral -->
+  <div id="aba-visao">
+    <div class="card">
+      <div class="card-body pb-2">
+        <input type="text" id="busca-visao" class="form-control mb-3" placeholder="Buscar produto..." oninput="carregarVisao()">
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr>
+            <th onclick="sortVisao('nome')" style="cursor:pointer;user-select:none">Produto <span class="sv-icon" data-col="nome"></span></th>
+            <th class="d-none d-sm-table-cell" onclick="sortVisao('categoria')" style="cursor:pointer;user-select:none">Categoria <span class="sv-icon" data-col="categoria"></span></th>
+            <th onclick="sortVisao('unidade')" style="cursor:pointer;user-select:none">Un. <span class="sv-icon" data-col="unidade"></span></th>
+            <th class="text-end d-none d-sm-table-cell" onclick="sortVisao('estoque_atual')" style="cursor:pointer;user-select:none">Atual <span class="sv-icon" data-col="estoque_atual"></span></th>
+            <th class="text-end d-none d-sm-table-cell" onclick="sortVisao('estoque_minimo')" style="cursor:pointer;user-select:none">Mínimo <span class="sv-icon" data-col="estoque_minimo"></span></th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody id="tb-visao"><tr><td colspan="6" class="text-center py-3 text-muted">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entrada -->
+  <div id="aba-entrada" style="display:none">
+    <div class="row g-3">
+
+      <!-- Coluna esquerda: lista de produtos -->
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-header fw-semibold py-2">
+            <i class="bi bi-box-seam me-1"></i>Produtos
+          </div>
+          <div class="card-body py-2 px-3">
+            <input type="text" id="ent-busca" class="form-control form-control-sm"
+              placeholder="Buscar produto..." oninput="filtrarListaEnt()">
+          </div>
+          <div style="max-height:420px;overflow-y:auto">
+            <table class="table table-hover table-sm mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th onclick="sortEnt('nome')" style="cursor:pointer;user-select:none">Produto <span class="se-icon" data-col="nome"></span></th>
+                  <th class="text-center" style="width:55px;cursor:pointer;user-select:none" onclick="sortEnt('unidade')">Un. <span class="se-icon" data-col="unidade"></span></th>
+                  <th class="text-end" style="width:70px;cursor:pointer;user-select:none" onclick="sortEnt('estoque_atual')">Estoque <span class="se-icon" data-col="estoque_atual"></span></th>
+                  <th style="width:36px"></th>
+                </tr>
+              </thead>
+              <tbody id="ent-tb-produtos">
+                <tr><td colspan="4" class="text-center text-muted py-3">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna direita: itens selecionados -->
+      <div class="col-md-7">
+        <div class="card">
+          <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-box-arrow-in-down me-1"></i>Itens para Entrada</span>
+            <span id="ent-badge" class="badge bg-success" style="display:none!important">0 itens</span>
+          </div>
+          <div style="min-height:200px;max-height:340px;overflow-y:auto">
+            <table class="table table-sm mb-0" id="ent-tb-itens">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Produto</th>
+                  <th class="text-center" style="width:55px">Un.</th>
+                  <th class="text-end" style="width:55px">Atual</th>
+                  <th style="width:110px">Qtd. Entrada</th>
+                  <th style="width:32px"></th>
+                </tr>
+              </thead>
+              <tbody id="ent-tb-itens-body">
+                <tr id="ent-vazio">
+                  <td colspan="5" class="text-center text-muted py-4" style="font-size:.85rem">
+                    <i class="bi bi-arrow-left-circle me-1"></i>Clique em + para adicionar produtos
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card-footer">
+            <div class="mb-2">
+              <label class="form-label small fw-semibold mb-1">Motivo</label>
+              <input type="text" id="ent-motivo" class="form-control form-control-sm" value="Entrada de mercadoria">
+            </div>
+            <button class="btn btn-pdv w-100 fw-semibold" onclick="confirmarEntrada()">
+              <i class="bi bi-check-circle me-1"></i>Confirmar Entrada
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Ajuste -->
+  <div id="aba-ajuste" style="display:none">
+    <div class="row g-3">
+
+      <!-- Coluna esquerda: lista de produtos -->
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-header fw-semibold py-2">
+            <i class="bi bi-box-seam me-1"></i>Produtos
+          </div>
+          <div class="card-body py-2 px-3">
+            <input type="text" id="ajt-busca" class="form-control form-control-sm"
+              placeholder="Buscar produto..." oninput="filtrarListaAjt()">
+          </div>
+          <div style="max-height:420px;overflow-y:auto">
+            <table class="table table-hover table-sm mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th onclick="sortAjt('nome')" style="cursor:pointer;user-select:none">Produto <span class="sa-icon" data-col="nome"></span></th>
+                  <th class="text-center" style="width:55px;cursor:pointer;user-select:none" onclick="sortAjt('unidade')">Un. <span class="sa-icon" data-col="unidade"></span></th>
+                  <th class="text-end" style="width:70px;cursor:pointer;user-select:none" onclick="sortAjt('estoque_atual')">Estoque <span class="sa-icon" data-col="estoque_atual"></span></th>
+                  <th style="width:36px"></th>
+                </tr>
+              </thead>
+              <tbody id="ajt-tb-produtos">
+                <tr><td colspan="4" class="text-center text-muted py-3">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna direita: itens para ajuste -->
+      <div class="col-md-7">
+        <div class="card">
+          <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-sliders me-1"></i>Itens para Ajuste</span>
+            <span id="ajt-badge" class="badge bg-warning text-dark" style="display:none!important">0 itens</span>
+          </div>
+          <div style="min-height:200px;max-height:340px;overflow-y:auto">
+            <table class="table table-sm mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Produto</th>
+                  <th class="text-center" style="width:55px">Un.</th>
+                  <th class="text-end" style="width:60px">Atual</th>
+                  <th style="width:110px">Nova Qtd.</th>
+                  <th style="width:32px"></th>
+                </tr>
+              </thead>
+              <tbody id="ajt-tb-itens-body">
+                <tr id="ajt-vazio">
+                  <td colspan="5" class="text-center text-muted py-4" style="font-size:.85rem">
+                    <i class="bi bi-arrow-left-circle me-1"></i>Clique em + para selecionar produtos
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card-footer">
+            <div class="mb-2">
+              <label class="form-label small fw-semibold mb-1">Motivo</label>
+              <input type="text" id="ajt-motivo" class="form-control form-control-sm" value="Ajuste de inventário">
+            </div>
+            <button class="btn btn-warning w-100 fw-semibold" onclick="confirmarAjuste()">
+              <i class="bi bi-check-circle me-1"></i>Confirmar Ajuste
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Saída -->
+  <div id="aba-saida" style="display:none">
+    <div class="row g-3">
+
+      <!-- Coluna esquerda: lista de produtos -->
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-header fw-semibold py-2">
+            <i class="bi bi-box-seam me-1"></i>Produtos
+          </div>
+          <div class="card-body py-2 px-3">
+            <input type="text" id="sai-busca" class="form-control form-control-sm"
+              placeholder="Buscar produto..." oninput="filtrarListaSai()">
+          </div>
+          <div style="max-height:420px;overflow-y:auto">
+            <table class="table table-hover table-sm mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th onclick="sortSai('nome')" style="cursor:pointer;user-select:none">Produto <span class="ss-icon" data-col="nome"></span></th>
+                  <th class="text-center" style="width:55px;cursor:pointer;user-select:none" onclick="sortSai('unidade')">Un. <span class="ss-icon" data-col="unidade"></span></th>
+                  <th class="text-end" style="width:70px;cursor:pointer;user-select:none" onclick="sortSai('estoque_atual')">Estoque <span class="ss-icon" data-col="estoque_atual"></span></th>
+                  <th style="width:36px"></th>
+                </tr>
+              </thead>
+              <tbody id="sai-tb-produtos">
+                <tr><td colspan="4" class="text-center text-muted py-3">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna direita: itens para saída -->
+      <div class="col-md-7">
+        <div class="card">
+          <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-box-arrow-up me-1"></i>Itens para Saída</span>
+            <span id="sai-badge" class="badge bg-danger" style="display:none!important">0 itens</span>
+          </div>
+          <div style="min-height:200px;max-height:340px;overflow-y:auto">
+            <table class="table table-sm mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Produto</th>
+                  <th class="text-center" style="width:55px">Un.</th>
+                  <th class="text-end" style="width:55px">Atual</th>
+                  <th style="width:110px">Qtd. Saída</th>
+                  <th style="width:32px"></th>
+                </tr>
+              </thead>
+              <tbody id="sai-tb-itens-body">
+                <tr id="sai-vazio">
+                  <td colspan="5" class="text-center text-muted py-4" style="font-size:.85rem">
+                    <i class="bi bi-arrow-left-circle me-1"></i>Clique em + para selecionar produtos
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card-footer">
+            <div class="mb-2">
+              <label class="form-label small fw-semibold mb-1">Motivo</label>
+              <input type="text" id="sai-motivo" class="form-control form-control-sm" value="Saída de estoque">
+            </div>
+            <button class="btn btn-danger w-100 fw-semibold" onclick="confirmarSaida()">
+              <i class="bi bi-check-circle me-1"></i>Confirmar Saída
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Histórico / Relatório de Movimentação -->
+  <div id="aba-historico" style="display:none">
+
+    <!-- Cabeçalho para impressão -->
+    <div class="print-header mb-3">
+      <h4 class="mb-0">Relatório de Movimentação de Estoque</h4>
+      <small id="print-periodo"></small>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-3 filtros-hist">
+      <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+          <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold">Data Início</label>
+            <input type="date" id="hist-inicio" class="form-control form-control-sm">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold">Data Fim</label>
+            <input type="date" id="hist-fim" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">Tipo</label>
+            <select id="hist-tipo" class="form-select form-select-sm">
+              <option value="">Todos</option>
+              <option value="entrada">Entrada</option>
+              <option value="venda">Venda</option>
+              <option value="ajuste">Ajuste</option>
+              <option value="saida">Saída</option>
+            </select>
+          </div>
+          <div class="col-md-3 position-relative">
+            <label class="form-label small fw-semibold">Produto</label>
+            <input type="text" id="hist-prod-text" class="form-control form-control-sm"
+              placeholder="Todos os produtos..." oninput="onBuscaProdHist()" autocomplete="off">
+            <input type="hidden" id="hist-prod-id">
+            <div id="hist-prod-drop"
+              style="display:none;position:absolute;z-index:300;width:100%;background:#fff;
+                     border:1px solid #dee2e6;border-radius:0 0 6px 6px;
+                     max-height:160px;overflow-y:auto;top:100%;left:0"></div>
+          </div>
+          <div class="col-md-3 d-flex gap-1 no-print">
+            <button class="btn btn-pdv btn-sm flex-grow-1" onclick="carregarHistorico()">
+              <i class="bi bi-search me-1"></i>Buscar
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="limparFiltrosHist()" title="Limpar filtros">
+              <i class="bi bi-x-lg"></i>
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="imprimirHistorico()" title="Imprimir relatório">
+              <i class="bi bi-printer"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cards de resumo -->
+    <div id="hist-resumo" class="row g-2 mb-3 d-none">
+      <div class="col-6 col-md-3">
+        <div class="card h-100 border-success">
+          <div class="card-body py-2 px-3 text-center">
+            <div class="text-success small fw-semibold"><i class="bi bi-box-arrow-in-down me-1"></i>Entradas</div>
+            <div class="fs-4 fw-bold" id="r-entradas-qtd">0</div>
+            <div class="text-muted small" id="r-entradas-un">0 unid.</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card h-100 border-danger">
+          <div class="card-body py-2 px-3 text-center">
+            <div class="text-danger small fw-semibold"><i class="bi bi-cart-dash me-1"></i>Saídas (Vendas)</div>
+            <div class="fs-4 fw-bold" id="r-vendas-qtd">0</div>
+            <div class="text-muted small" id="r-vendas-un">0 unid.</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card h-100 border-warning">
+          <div class="card-body py-2 px-3 text-center">
+            <div class="text-warning small fw-semibold"><i class="bi bi-sliders me-1"></i>Ajustes</div>
+            <div class="fs-4 fw-bold" id="r-ajustes-qtd">0</div>
+            <div class="text-muted small" id="r-ajustes-un">0 unid.</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card h-100">
+          <div class="card-body py-2 px-3 text-center">
+            <div class="text-muted small fw-semibold"><i class="bi bi-list-ul me-1"></i>Total de Movimentos</div>
+            <div class="fs-4 fw-bold" id="r-total-movs">0</div>
+            <div class="text-muted small" id="r-periodo-label">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0" id="tb-hist-print">
+          <thead class="table-light">
+            <tr>
+              <th style="width:130px">Data / Hora</th>
+              <th>Produto</th>
+              <th style="width:90px">Tipo</th>
+              <th class="text-end" style="width:90px">Quantidade</th>
+              <th class="text-end" style="width:80px">Anterior</th>
+              <th class="text-end" style="width:80px">Posterior</th>
+              <th>Motivo / Origem</th>
+            </tr>
+          </thead>
+          <tbody id="tb-historico">
+            <tr><td colspan="7" class="text-center py-3 text-muted">Use os filtros acima e clique em Buscar</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alertas -->
+  <div id="aba-alertas" style="display:none">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>Produtos com Estoque Baixo ou Zerado</div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Produto</th><th>Un.</th><th class="text-end d-none d-sm-table-cell">Atual</th><th class="text-end d-none d-sm-table-cell">Mínimo</th><th>Situação</th></tr></thead>
+          <tbody id="tb-alertas"><tr><td colspan="5" class="text-center py-3 text-muted">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js?v=2"></script><script src="/js/utils.js?v=2"></script><script src="/js/components.js?v=2"></script>
+<script>
+  document.getElementById('sidebar-mount').innerHTML = renderSidebar('/pages/estoque.html');
+  if (!requirePermissao('estoque')) throw '';
+
+  // Escapa aspas simples para uso seguro em atributos onclick="..."
+  function _esc(s) { return (s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+  function toggleVars(prefix, pid) {
+    const rows = document.querySelectorAll('.var-' + prefix + '-' + pid);
+    const chev = document.getElementById('chev-' + prefix + '-' + pid);
+    const aberto = chev && chev.classList.contains('aberto');
+    rows.forEach(r => r.style.display = aberto ? 'none' : '');
+    if (chev) chev.classList.toggle('aberto', !aberto);
+  }
+  // Chave única para identificar um item no carrinho (produto + variação)
+  function _vk(prodId, varId) { return prodId + '_' + (varId || 0); }
+  // Verifica se unidade é decimal
+  function _unDec(un) { return ['kg','g','mg','l','lt','lts','ml','m','m²','m³'].includes((un||'').toLowerCase()); }
+
+  async function init() {
+    const alertas = await api.estoque.alertas();
+    if (alertas.length > 0) {
+      document.getElementById('banner-alertas').classList.remove('d-none');
+      document.getElementById('qtd-alertas').textContent = alertas.length;
+    }
+    carregarVisao();
+  }
+
+  function mudarAba(aba, link) {
+    ['visao','entrada','ajuste','saida','historico','alertas'].forEach(a => {
+      document.getElementById('aba-' + a).style.display = a === aba ? '' : 'none';
+    });
+    document.querySelectorAll('#abas .nav-link').forEach(el => el.classList.remove('active'));
+    link.classList.add('active');
+    if (aba === 'entrada')   carregarListaEnt();
+    if (aba === 'ajuste')    carregarListaAjt();
+    if (aba === 'saida')     carregarListaSai();
+    if (aba === 'historico') {
+      if (!document.getElementById('hist-inicio').value) {
+        document.getElementById('hist-inicio').value = inicioMesISO();
+        document.getElementById('hist-fim').value    = dataHojeISO();
+      }
+      carregarHistorico();
+    }
+    if (aba === 'alertas') carregarAlertas();
+    return false;
+  }
+
+  function abaAlertas() {
+    mudarAba('alertas', document.getElementById('aba-alertas-link'));
+  }
+
+  // ── Visão Geral ───────────────────────────────────
+  let visaoCache = [];
+  let sortKeyVisao = null, sortDirVisao = 'asc';
+
+  async function carregarVisao() {
+    const busca = document.getElementById('busca-visao').value;
+    visaoCache = await api.produtos.listar(busca ? { busca } : {});
+    renderVisao();
+  }
+
+  function sortVisao(key) {
+    if (sortKeyVisao === key) sortDirVisao = sortDirVisao === 'asc' ? 'desc' : 'asc';
+    else { sortKeyVisao = key; sortDirVisao = 'asc'; }
+    renderVisao();
+  }
+
+  function renderVisao() {
+    const list = sortKeyVisao
+      ? [...visaoCache].sort((a, b) => {
+          let va = sortKeyVisao === 'categoria' ? (a.categoria ? a.categoria.nome : '') : (a[sortKeyVisao] ?? '');
+          let vb = sortKeyVisao === 'categoria' ? (b.categoria ? b.categoria.nome : '') : (b[sortKeyVisao] ?? '');
+          if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+          return va < vb ? (sortDirVisao==='asc'?-1:1) : va > vb ? (sortDirVisao==='asc'?1:-1) : 0;
+        })
+      : visaoCache;
+    document.querySelectorAll('.sv-icon').forEach(el => {
+      el.textContent = el.dataset.col === sortKeyVisao ? (sortDirVisao==='asc'?' ▲':' ▼') : '';
+    });
+    const tb = document.getElementById('tb-visao');
+    tb.innerHTML = list.length === 0
+      ? '<tr><td colspan="6" class="text-center py-3 text-muted">Nenhum produto</td></tr>'
+      : list.map(p => {
+          const vars = (p.variacoes||[]).filter(v => v.ativo !== false);
+          const linhaBase = `<tr class="${vars.length?'prod-pai':''}" ${vars.length?`onclick="toggleVars('visao',${p.id})"`:''}">
+            <td class="fw-semibold">
+              ${vars.length ? `<i class="bi bi-chevron-right chev-var me-1" id="chev-visao-${p.id}"></i>` : ''}
+              ${p.nome}${vars.length ? ` <span class="badge bg-light text-secondary border ms-1" style="font-size:.7rem">${vars.length} var.</span>` : ''}
+            </td>
+            <td class="d-none d-sm-table-cell">${p.categoria ? p.categoria.nome : '-'}</td>
+            <td>${p.unidade}</td>
+            <td class="text-end d-none d-sm-table-cell">${p.estoque_atual}</td>
+            <td class="text-end text-muted d-none d-sm-table-cell">${p.estoque_minimo}</td>
+            <td>${badgeEstoque(p.estoque_atual, p.estoque_minimo, p.unidade)}</td>
+          </tr>`;
+          const linhasVar = vars.map(v => `<tr class="var-visao-${p.id}" style="display:none">
+            <td class="text-muted" style="padding-left:2.2rem;font-size:.82rem">↳ ${v.nome}</td>
+            <td class="d-none d-sm-table-cell"></td><td></td>
+            <td class="text-end d-none d-sm-table-cell" style="font-size:.82rem">${v.estoque_atual}</td>
+            <td class="text-end text-muted d-none d-sm-table-cell" style="font-size:.82rem">${v.estoque_minimo||0}</td>
+            <td>${badgeEstoque(v.estoque_atual, v.estoque_minimo||0, p.unidade)}</td>
+          </tr>`).join('');
+          return linhaBase + linhasVar;
+        }).join('');
+  }
+
+  // ── Histórico ─────────────────────────────────────
+  let histProdTimer = null, histProdList = [];
+
+  function onBuscaProdHist() {
+    clearTimeout(histProdTimer);
+    const val = document.getElementById('hist-prod-text').value.trim();
+    document.getElementById('hist-prod-id').value = '';
+    const drop = document.getElementById('hist-prod-drop');
+    if (!val) { drop.style.display = 'none'; return; }
+    histProdTimer = setTimeout(async () => {
+      histProdList = (await api.produtos.listar({ busca: val })).slice(0, 8);
+      if (!histProdList.length) { drop.style.display = 'none'; return; }
+      drop.style.display = '';
+      drop.innerHTML = histProdList.map((p, i) =>
+        `<div style="padding:.4rem .75rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid #f5f5f5"
+          onmousedown="selecionarProdHist(${i})">
+          <strong>${p.nome}</strong>
+          <span class="text-muted ms-1 small">${p.unidade} · estoque: ${p.estoque_atual}</span>
+        </div>`
+      ).join('');
+    }, 200);
+  }
+
+  function selecionarProdHist(i) {
+    const p = histProdList[i];
+    document.getElementById('hist-prod-id').value   = p.id;
+    document.getElementById('hist-prod-text').value = p.nome;
+    document.getElementById('hist-prod-drop').style.display = 'none';
+  }
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#hist-prod-text') && !e.target.closest('#hist-prod-drop'))
+      document.getElementById('hist-prod-drop').style.display = 'none';
+  });
+
+  function limparFiltrosHist() {
+    document.getElementById('hist-inicio').value     = inicioMesISO();
+    document.getElementById('hist-fim').value        = dataHojeISO();
+    document.getElementById('hist-tipo').value       = '';
+    document.getElementById('hist-prod-text').value  = '';
+    document.getElementById('hist-prod-id').value    = '';
+    document.getElementById('hist-prod-drop').style.display = 'none';
+    carregarHistorico();
+  }
+
+  function imprimirHistorico() {
+    const ini = document.getElementById('hist-inicio').value;
+    const fim = document.getElementById('hist-fim').value;
+    document.getElementById('print-periodo').textContent =
+      `Período: ${ini ? new Date(ini+'T12:00').toLocaleDateString('pt-BR') : '—'} a ${fim ? new Date(fim+'T12:00').toLocaleDateString('pt-BR') : '—'}`;
+    window.print();
+  }
+
+  async function carregarHistorico() {
+    const tipo   = document.getElementById('hist-tipo').value;
+    const prodId = document.getElementById('hist-prod-id').value;
+    const inicio = document.getElementById('hist-inicio').value;
+    const fim    = document.getElementById('hist-fim').value;
+    const params = { limite: 500 };
+    if (tipo)   params.tipo        = tipo;
+    if (prodId) params.produto_id  = prodId;
+    if (inicio) params.data_inicio = inicio;
+    if (fim)    params.data_fim    = fim;
+    const tb = document.getElementById('tb-historico');
+    tb.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Carregando...</td></tr>';
+    const resumoParams = {};
+    if (inicio) resumoParams.data_inicio = inicio;
+    if (fim)    resumoParams.data_fim    = fim;
+    const [listResult, resumoResult] = await Promise.allSettled([
+      api.estoque.movimentos(params),
+      api.estoque.resumoMovimentos(resumoParams),
+    ]);
+    const list   = listResult.status   === 'fulfilled' ? listResult.value   : [];
+    const resumo = resumoResult.status === 'fulfilled' ? resumoResult.value : [];
+    const rMap = {};
+    resumo.forEach(r => { rMap[r.tipo] = r; });
+    const fmtN = n => Number(n||0).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+    document.getElementById('r-entradas-qtd').textContent = rMap['entrada']?.quantidade || 0;
+    document.getElementById('r-entradas-un').textContent  = fmtN(rMap['entrada']?.total_unidades) + ' unid.';
+    document.getElementById('r-vendas-qtd').textContent   = rMap['venda']?.quantidade || 0;
+    document.getElementById('r-vendas-un').textContent    = fmtN(rMap['venda']?.total_unidades) + ' unid.';
+    document.getElementById('r-ajustes-qtd').textContent  = rMap['ajuste']?.quantidade || 0;
+    document.getElementById('r-ajustes-un').textContent   = fmtN(rMap['ajuste']?.total_unidades) + ' unid.';
+    document.getElementById('r-total-movs').textContent   = list.length;
+    document.getElementById('r-periodo-label').textContent =
+      inicio && fim ? `${new Date(inicio+'T12:00').toLocaleDateString('pt-BR')} → ${new Date(fim+'T12:00').toLocaleDateString('pt-BR')}` : 'todo o período';
+    document.getElementById('hist-resumo').classList.remove('d-none');
+    const badgeTipo = {
+      entrada: '<span class="badge" style="background:#198754">Entrada</span>',
+      venda:   '<span class="badge" style="background:#dc3545">Venda</span>',
+      ajuste:  '<span class="badge" style="background:#fd7e14">Ajuste</span>',
+      saida:   '<span class="badge" style="background:#6c757d">Saída</span>',
+    };
+    const corQtd   = { entrada:'text-success', venda:'text-danger', ajuste:'text-warning', saida:'text-danger' };
+    const classeRow = { entrada:'mov-entrada', venda:'mov-venda', ajuste:'mov-ajuste', saida:'mov-saida' };
+    tb.innerHTML = list.length === 0
+      ? '<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-2 d-block mb-1"></i>Nenhum movimento no período</td></tr>'
+      : list.map(m => {
+          const dt   = new Date(m.criado_em);
+          const sinal = m.quantidade > 0 ? '+' : '';
+          const qtdFmt = `${sinal}${Number(m.quantidade).toLocaleString('pt-BR',{maximumFractionDigits:3})}`;
+          return `<tr class="${classeRow[m.tipo]||''}">
+            <td><div class="hora-destaque">${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div>
+                <div class="data-linha">${dt.toLocaleDateString('pt-BR')}</div></td>
+            <td class="fw-semibold" style="font-size:.85rem">${m.produto ? m.produto.nome : m.produto_id}</td>
+            <td>${badgeTipo[m.tipo]||`<span class="badge bg-secondary">${m.tipo}</span>`}</td>
+            <td class="text-end fw-bold ${corQtd[m.tipo]||''}">${qtdFmt}</td>
+            <td class="text-end text-muted" style="font-size:.82rem">${Number(m.estoque_anterior).toLocaleString('pt-BR',{maximumFractionDigits:3})}</td>
+            <td class="text-end fw-semibold" style="font-size:.82rem">${Number(m.estoque_posterior).toLocaleString('pt-BR',{maximumFractionDigits:3})}</td>
+            <td class="text-muted" style="font-size:.8rem">${m.motivo||'-'}</td>
+          </tr>`;
+        }).join('');
+  }
+
+  async function carregarAlertas() {
+    const list = await api.estoque.alertas();
+    const tb = document.getElementById('tb-alertas');
+    tb.innerHTML = list.length === 0
+      ? '<tr><td colspan="5" class="text-success text-center py-3"><i class="bi bi-check-circle me-1"></i>Todos os estoques OK!</td></tr>'
+      : list.map(a => `<tr>
+          <td class="fw-semibold">${a.nome}</td><td>${a.unidade}</td>
+          <td class="text-end fw-bold d-none d-sm-table-cell ${a.estoque_atual<=0?'text-danger':'text-warning'}">${a.estoque_atual}</td>
+          <td class="text-end text-muted d-none d-sm-table-cell">${a.estoque_minimo}</td>
+          <td><span class="badge ${a.estoque_atual<=0?'bg-danger':'bg-warning text-dark'}">${a.estoque_atual<=0?'Zerado':'Baixo'}</span></td>
+        </tr>`).join('');
+  }
+
+  // ── ENTRADA ────────────────────────────────────────
+  let entTodosProd = [], entCarrinho = [];
+  let sortKeyEnt = null, sortDirEnt = 'asc';
+
+  function sortEnt(key) {
+    if (sortKeyEnt===key) sortDirEnt = sortDirEnt==='asc'?'desc':'asc';
+    else { sortKeyEnt=key; sortDirEnt='asc'; }
+    filtrarListaEnt();
+  }
+
+  async function carregarListaEnt() {
+    entTodosProd = await api.produtos.listar({});
+    filtrarListaEnt();
+  }
+
+  function filtrarListaEnt() {
+    const busca = document.getElementById('ent-busca').value.toLowerCase();
+    let lista = busca ? entTodosProd.filter(p => p.nome.toLowerCase().includes(busca)||(p.codigo_barras||'').includes(busca)) : entTodosProd;
+    if (sortKeyEnt) lista = [...lista].sort((a,b) => {
+      let va=a[sortKeyEnt]??'', vb=b[sortKeyEnt]??'';
+      if(typeof va==='string'){va=va.toLowerCase();vb=vb.toLowerCase();}
+      return va<vb?(sortDirEnt==='asc'?-1:1):va>vb?(sortDirEnt==='asc'?1:-1):0;
+    });
+    document.querySelectorAll('.se-icon').forEach(el => {
+      el.textContent = el.dataset.col===sortKeyEnt?(sortDirEnt==='asc'?' ▲':' ▼'):'';
+    });
+    const tb = document.getElementById('ent-tb-produtos');
+    tb.innerHTML = lista.length===0 ? '<tr><td colspan="4" class="text-center text-muted py-3">Nenhum produto</td></tr>'
+      : lista.map(p => {
+          const vars = (p.variacoes||[]).filter(v => v.ativo!==false);
+          if (vars.length) return `
+            <tr class="table-light prod-pai" onclick="toggleVars('ent',${p.id})">
+              <td colspan="3" style="font-size:.83rem" class="fw-semibold text-secondary">
+                <i class="bi bi-chevron-right chev-var me-1" id="chev-ent-${p.id}"></i>
+                <i class="bi bi-tags me-1 text-primary" style="font-size:.75rem"></i>${p.nome}
+                <span class="fw-normal text-muted" style="font-size:.75rem"> — ${vars.length} variações</span>
+              </td><td></td>
+            </tr>
+            ${vars.map(v => {
+              const ja = entCarrinho.some(i => i.key===_vk(p.id,v.id));
+              return `<tr class="var-ent-${p.id} ${ja?'table-success':''}" style="display:none">
+                <td style="font-size:.82rem;padding-left:1.8rem"><span class="text-muted me-1">↳</span>${v.nome}</td>
+                <td class="text-center text-muted" style="font-size:.8rem">${p.unidade}</td>
+                <td class="text-end" style="font-size:.8rem">${v.estoque_atual}</td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-success py-0 px-2" style="font-size:.8rem"
+                    onclick="event.stopPropagation();adicionarItemEnt(${p.id},${v.id},'${_esc(v.nome)}',${v.estoque_atual})">
+                    <i class="bi bi-plus-lg"></i></button>
+                </td></tr>`;
+            }).join('')}`;
+          return `<tr>
+            <td style="font-size:.83rem" class="fw-semibold">${p.nome}</td>
+            <td class="text-center text-muted" style="font-size:.8rem">${p.unidade}</td>
+            <td class="text-end" style="font-size:.8rem">${p.estoque_atual}</td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-success py-0 px-2" style="font-size:.8rem"
+                onclick="adicionarItemEnt(${p.id},null,null,${p.estoque_atual})">
+                <i class="bi bi-plus-lg"></i></button>
+            </td></tr>`;
+        }).join('');
+  }
+
+  function adicionarItemEnt(prodId, varId, varNome, estoqueAtual) {
+    const key = _vk(prodId, varId);
+    if (entCarrinho.find(i => i.key===key)) {
+      const inp = document.getElementById('ent-qtd-'+key); if(inp){inp.focus();inp.select();} return;
+    }
+    const prod = entTodosProd.find(p => p.id===prodId); if(!prod) return;
+    entCarrinho.push({ key, prod, variacao_id: varId||null, variacao_nome: varNome||null, estoque_disp: estoqueAtual, qtd:1 });
+    renderCarrinhoEnt();
+    setTimeout(() => { const i=document.getElementById('ent-qtd-'+key); if(i){i.focus();i.select();} }, 50);
+  }
+
+  function removerItemEnt(key) {
+    entCarrinho = entCarrinho.filter(i => i.key!==key);
+    renderCarrinhoEnt();
+  }
+
+  function renderCarrinhoEnt() {
+    const tbody = document.getElementById('ent-tb-itens-body');
+    const badge = document.getElementById('ent-badge');
+    if (!entCarrinho.length) {
+      tbody.innerHTML = `<tr id="ent-vazio"><td colspan="5" class="text-center text-muted py-4" style="font-size:.85rem">
+        <i class="bi bi-arrow-left-circle me-1"></i>Clique em + para adicionar produtos</td></tr>`;
+      badge.style.setProperty('display','none','important'); return;
+    }
+    badge.textContent = entCarrinho.length+' item'+(entCarrinho.length>1?'s':'');
+    badge.style.removeProperty('display');
+    tbody.innerHTML = entCarrinho.map(item => {
+      const step = _unDec(item.prod.unidade)?'0.001':'1';
+      const nome = item.variacao_nome
+        ? `${item.prod.nome} <span class="badge bg-secondary ms-1" style="font-size:.7rem">${item.variacao_nome}</span>`
+        : item.prod.nome;
+      return `<tr>
+        <td style="font-size:.83rem" class="fw-semibold">${nome}</td>
+        <td class="text-center text-muted" style="font-size:.8rem">${item.prod.unidade}</td>
+        <td class="text-end text-muted" style="font-size:.8rem">${item.estoque_disp}</td>
+        <td><input type="number" id="ent-qtd-${item.key}" class="form-control form-control-sm text-center"
+          min="${step}" step="${step}" value="${item.qtd}" style="width:90px"
+          onchange="atualizarQtdEnt('${item.key}',this.value)"></td>
+        <td class="text-center"><button class="btn btn-sm btn-outline-danger py-0 px-1"
+          onclick="removerItemEnt('${item.key}')"><i class="bi bi-trash3" style="font-size:.75rem"></i></button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function atualizarQtdEnt(key, val) {
+    const item = entCarrinho.find(i => i.key===key); if(item) item.qtd = parseFloat(val)||0;
+  }
+
+  async function confirmarEntrada() {
+    if (!entCarrinho.length) { showToast('Adicione pelo menos um produto','error'); return; }
+    if (entCarrinho.some(i => !i.qtd||i.qtd<=0)) { showToast('Preencha a quantidade de todos os itens','error'); return; }
+    const motivo  = document.getElementById('ent-motivo').value || 'Entrada de mercadoria';
+    const vendedor = getVendedor();
+    let ok=0, erros=0;
+    for (const item of entCarrinho) {
+      try {
+        await api.estoque.entrada({ produto_id:item.prod.id, variacao_id:item.variacao_id, quantidade:item.qtd, motivo, vendedor_id:vendedor.id });
+        ok++;
+      } catch(e) { erros++; }
+    }
+    showToast(`${ok} entrada(s) registrada(s)!${erros?' '+erros+' com erro.':''}`, erros?'warning':'success');
+    entCarrinho=[]; renderCarrinhoEnt(); await carregarListaEnt();
+  }
+
+  // ── SAÍDA ──────────────────────────────────────────
+  let saiTodosProd = [], saiCarrinho = [];
+  let sortKeySai = null, sortDirSai = 'asc';
+
+  function sortSai(key) {
+    if (sortKeySai===key) sortDirSai = sortDirSai==='asc'?'desc':'asc';
+    else { sortKeySai=key; sortDirSai='asc'; }
+    filtrarListaSai();
+  }
+
+  async function carregarListaSai() {
+    saiTodosProd = await api.produtos.listar({});
+    filtrarListaSai();
+  }
+
+  function filtrarListaSai() {
+    const busca = document.getElementById('sai-busca').value.toLowerCase();
+    let lista = busca ? saiTodosProd.filter(p => p.nome.toLowerCase().includes(busca)||(p.codigo_barras||'').includes(busca)) : saiTodosProd;
+    if (sortKeySai) lista = [...lista].sort((a,b) => {
+      let va=a[sortKeySai]??'', vb=b[sortKeySai]??'';
+      if(typeof va==='string'){va=va.toLowerCase();vb=vb.toLowerCase();}
+      return va<vb?(sortDirSai==='asc'?-1:1):va>vb?(sortDirSai==='asc'?1:-1):0;
+    });
+    document.querySelectorAll('.ss-icon').forEach(el => {
+      el.textContent = el.dataset.col===sortKeySai?(sortDirSai==='asc'?' ▲':' ▼'):'';
+    });
+    const tb = document.getElementById('sai-tb-produtos');
+    tb.innerHTML = lista.length===0 ? '<tr><td colspan="4" class="text-center text-muted py-3">Nenhum produto</td></tr>'
+      : lista.map(p => {
+          const vars = (p.variacoes||[]).filter(v => v.ativo!==false);
+          if (vars.length) return `
+            <tr class="table-light prod-pai" onclick="toggleVars('sai',${p.id})">
+              <td colspan="3" style="font-size:.83rem" class="fw-semibold text-secondary">
+                <i class="bi bi-chevron-right chev-var me-1" id="chev-sai-${p.id}"></i>
+                <i class="bi bi-tags me-1 text-primary" style="font-size:.75rem"></i>${p.nome}
+                <span class="fw-normal text-muted" style="font-size:.75rem"> — ${vars.length} variações</span>
+              </td><td></td>
+            </tr>
+            ${vars.map(v => {
+              const ja = saiCarrinho.some(i => i.key===_vk(p.id,v.id));
+              const sem = v.estoque_atual<=0;
+              return `<tr class="var-sai-${p.id} ${ja?'table-danger':''}" style="display:none">
+                <td style="font-size:.82rem;padding-left:1.8rem"><span class="text-muted me-1">↳</span>${v.nome}</td>
+                <td class="text-center text-muted" style="font-size:.8rem">${p.unidade}</td>
+                <td class="text-end ${sem?'text-danger':''}" style="font-size:.8rem">${v.estoque_atual}</td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-danger py-0 px-2" style="font-size:.8rem"
+                    onclick="event.stopPropagation();adicionarItemSai(${p.id},${v.id},'${_esc(v.nome)}',${v.estoque_atual})"
+                    ${sem?'disabled':''}>
+                    <i class="bi bi-plus-lg"></i></button>
+                </td></tr>`;
+            }).join('')}`;
+          return `<tr>
+            <td style="font-size:.83rem" class="fw-semibold">${p.nome}</td>
+            <td class="text-center text-muted" style="font-size:.8rem">${p.unidade}</td>
+            <td class="text-end ${p.estoque_atual<=0?'text-danger':''}" style="font-size:.8rem">${p.estoque_atual}</td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-danger py-0 px-2" style="font-size:.8rem"
+                onclick="adicionarItemSai(${p.id},null,null,${p.estoque_atual})"
+                ${p.estoque_atual<=0?'disabled':''}>
+                <i class="bi bi-plus-lg"></i></button>
+            </td></tr>`;
+        }).join('');
+  }
+
+  function adicionarItemSai(prodId, varId, varNome, estoqueAtual) {
+    const key = _vk(prodId, varId);
+    if (saiCarrinho.find(i => i.key===key)) {
+      const inp = document.getElementById('sai-qtd-'+key); if(inp){inp.focus();inp.select();} return;
+    }
+    const prod = saiTodosProd.find(p => p.id===prodId); if(!prod) return;
+    saiCarrinho.push({ key, prod, variacao_id: varId||null, variacao_nome: varNome||null, estoque_disp: estoqueAtual, qtd:1 });
+    renderCarrinhoSai();
+    setTimeout(() => { const i=document.getElementById('sai-qtd-'+key); if(i){i.focus();i.select();} }, 50);
+  }
+
+  function removerItemSai(key) {
+    saiCarrinho = saiCarrinho.filter(i => i.key!==key);
+    renderCarrinhoSai();
+  }
+
+  function renderCarrinhoSai() {
+    const tbody = document.getElementById('sai-tb-itens-body');
+    const badge = document.getElementById('sai-badge');
+    if (!saiCarrinho.length) {
+      tbody.innerHTML = `<tr id="sai-vazio"><td colspan="5" class="text-center text-muted py-4" style="font-size:.85rem">
+        <i class="bi bi-arrow-left-circle me-1"></i>Clique em + para selecionar produtos</td></tr>`;
+      badge.style.setProperty('display','none','important'); return;
+    }
+    badge.textContent = saiCarrinho.length+' item'+(saiCarrinho.length>1?'s':'');
+    badge.style.removeProperty('display');
+    tbody.innerHTML = saiCarrinho.map(item => {
+      const step = _unDec(item.prod.unidade)?'0.001':'1';
+      const nome = item.variacao_nome
+        ? `${item.prod.nome} <span class="badge bg-secondary ms-1" style="font-size:.7rem">${item.variacao_nome}</span>`
+        : item.prod.nome;
+      return `<tr>
+        <td style="font-size:.83rem" class="fw-semibold">${nome}</td>
+        <td class="text-center text-muted" style="font-size:.8rem">${item.prod.unidade}</td>
+        <td class="text-end text-muted" style="font-size:.8rem">${item.estoque_disp}</td>
+        <td><input type="number" id="sai-qtd-${item.key}" class="form-control form-control-sm text-center"
+          min="${step}" max="${item.estoque_disp}" step="${step}" value="${item.qtd}" style="width:90px"
+          onchange="atualizarQtdSai('${item.key}',this.value)"></td>
+        <td class="text-center"><button class="btn btn-sm btn-outline-danger py-0 px-1"
+          onclick="removerItemSai('${item.key}')"><i class="bi bi-trash3" style="font-size:.75rem"></i></button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function atualizarQtdSai(key, val) {
+    const item = saiCarrinho.find(i => i.key===key); if(item) item.qtd = parseFloat(val)||0;
+  }
+
+  async function confirmarSaida() {
+    if (!saiCarrinho.length) { showToast('Adicione pelo menos um produto','error'); return; }
+    if (saiCarrinho.some(i => !i.qtd||i.qtd<=0)) { showToast('Preencha a quantidade de todos os itens','error'); return; }
+    if (saiCarrinho.some(i => i.qtd>i.estoque_disp)) { showToast('Quantidade maior que o estoque disponível','error'); return; }
+    const motivo  = document.getElementById('sai-motivo').value || 'Saída de estoque';
+    const vendedor = getVendedor();
+    let ok=0, erros=0;
+    for (const item of saiCarrinho) {
+      try {
+        await api.estoque.saida({ produto_id:item.prod.id, variacao_id:item.variacao_id, quantidade:item.qtd, motivo, vendedor_id:vendedor.id });
+        ok++;
+      } catch(e) { erros++; showToast(e.message,'error'); }
+    }
+    if (!erros) showToast(`${ok} saída(s) registrada(s)!`);
+    saiCarrinho=[]; renderCarrinhoSai(); await carregarListaSai();
+  }
+
+  // ── AJUSTE ─────────────────────────────────────────
+  let ajtTodosProd = [], ajtLista = [];
+  let sortKeyAjt = null, sortDirAjt = 'asc';
+
+  function sortAjt(key) {
+    if (sortKeyAjt===key) sortDirAjt = sortDirAjt==='asc'?'desc':'asc';
+    else { sortKeyAjt=key; sortDirAjt='asc'; }
+    filtrarListaAjt();
+  }
+
+  async function carregarListaAjt() {
+    ajtTodosProd = await api.produtos.listar({});
+    filtrarListaAjt();
+  }
+
+  function filtrarListaAjt() {
+    const busca = document.getElementById('ajt-busca').value.toLowerCase();
+    let lista = busca ? ajtTodosProd.filter(p => p.nome.toLowerCase().includes(busca)||(p.codigo_barras||'').includes(busca)) : ajtTodosProd;
+    if (sortKeyAjt) lista = [...lista].sort((a,b) => {
+      let va=a[sortKeyAjt]??'', vb=b[sortKeyAjt]??'';
+      if(typeof va==='string'){va=va.toLowerCase();vb=vb.toLowerCase();}
+      return va<vb?(sortDirAjt==='asc'?-1:1):va>vb?(sortDirAjt==='asc'?1:-1):0;
+    });
+    document.querySelectorAll('.sa-icon').forEach(el => {
+      el.textContent = el.dataset.col===sortKeyAjt?(sortDirAjt==='asc'?' ▲':' ▼'):'';
+    });
+    const tb = document.getElementById('ajt-tb-produtos');
+    tb.innerHTML = lista.length===0 ? '<tr><td colspan="4" class="text-center text-muted py-3">Nenhum produto</td></tr>'
+      : lista.map(p => {
+          const vars = (p.variacoes||[]).filter(v => v.ativo!==false);
+          if (vars.length) return `
+            <tr class="table-light prod-pai" onclick="toggleVars('ajt',${p.id})">
+              <td colspan="3" style="font-size:.83rem" class="fw-semibold text-secondary">
+                <i class="bi bi-chevron-right chev-var me-1" id="chev-ajt-${p.id}"></i>
+                <i class="bi bi-tags me-1 text-primary" style="font-size:.75rem"></i>${p.nome}
+                <span class="fw-normal text-muted" style="font-size:.75rem"> — ${vars.length} variações</span>
+              </td><td></td>
+            </tr>
+            ${vars.map(v => {
+              const key = _vk(p.id, v.id);
+              const ja  = ajtLista.some(i => i.key===key);
+              return `<tr class="var-ajt-${p.id} ${ja?'table-warning':''}" style="display:none">
+                <td style="font-size:.82rem;padding-left:1.8rem"><span class="text-muted me-1">↳</span>${v.nome}</td>
+                <td class="text-center text-muted" style="font-size:.8rem">${p.unidade}</td>
+                <td class="text-end" style="font-size:.8rem">${v.estoque_atual}</td>
+                <td class="text-center">
+                  <button class="btn btn-sm ${ja?'btn-warning':'btn-outline-warning'} py-0 px-2" style="font-size:.8rem"
+                    onclick="event.stopPropagation();adicionarItemAjt(${p.id},${v.id},'${_esc(v.nome)}',${v.estoque_atual})">
+                    <i class="bi bi-${ja?'pencil':'plus-lg'}"></i></button>
+                </td></tr>`;
+            }).join('')}`;
+          const jaProd = ajtLista.some(i => i.key===_vk(p.id,null));
+          return `<tr class="${jaProd?'table-warning':''}">
+            <td style="font-size:.83rem" class="fw-semibold">${p.nome}</td>
+            <td class="text-center text-muted" style="font-size:.8rem">${p.unidade}</td>
+            <td class="text-end" style="font-size:.8rem">${p.estoque_atual}</td>
+            <td class="text-center">
+              <button class="btn btn-sm ${jaProd?'btn-warning':'btn-outline-warning'} py-0 px-2" style="font-size:.8rem"
+                onclick="adicionarItemAjt(${p.id},null,null,${p.estoque_atual})">
+                <i class="bi bi-${jaProd?'pencil':'plus-lg'}"></i></button>
+            </td></tr>`;
+        }).join('');
+  }
+
+  function adicionarItemAjt(prodId, varId, varNome, estoqueAtual) {
+    const key = _vk(prodId, varId);
+    if (ajtLista.find(i => i.key===key)) {
+      const inp = document.getElementById('ajt-qtd-'+key); if(inp){inp.focus();inp.select();} return;
+    }
+    const prod = ajtTodosProd.find(p => p.id===prodId); if(!prod) return;
+    ajtLista.push({ key, prod, variacao_id: varId||null, variacao_nome: varNome||null, estoque_atual: estoqueAtual, qtdNova: estoqueAtual });
+    renderListaAjt(); filtrarListaAjt();
+    setTimeout(() => { const i=document.getElementById('ajt-qtd-'+key); if(i){i.focus();i.select();} }, 50);
+  }
+
+  function removerItemAjt(key) {
+    ajtLista = ajtLista.filter(i => i.key!==key);
+    renderListaAjt(); filtrarListaAjt();
+  }
+
+  function renderListaAjt() {
+    const tbody = document.getElementById('ajt-tb-itens-body');
+    const badge = document.getElementById('ajt-badge');
+    if (!ajtLista.length) {
+      tbody.innerHTML = `<tr id="ajt-vazio"><td colspan="5" class="text-center text-muted py-4" style="font-size:.85rem">
+        <i class="bi bi-arrow-left-circle me-1"></i>Clique em + para selecionar produtos</td></tr>`;
+      badge.style.setProperty('display','none','important'); return;
+    }
+    badge.textContent = ajtLista.length+' item'+(ajtLista.length>1?'s':'');
+    badge.style.removeProperty('display');
+    tbody.innerHTML = ajtLista.map(item => {
+      const step = _unDec(item.prod.unidade)?'0.001':'1';
+      const diff = item.qtdNova - item.estoque_atual;
+      const diffTxt = diff===0 ? '' : diff>0
+        ? `<span class="text-success ms-1" style="font-size:.75rem">+${diff}</span>`
+        : `<span class="text-danger ms-1" style="font-size:.75rem">${diff}</span>`;
+      const nome = item.variacao_nome
+        ? `${item.prod.nome} <span class="badge bg-secondary ms-1" style="font-size:.7rem">${item.variacao_nome}</span>`
+        : item.prod.nome;
+      return `<tr>
+        <td style="font-size:.83rem" class="fw-semibold" id="ajt-nm-${item.key}">${nome}${diffTxt}</td>
+        <td class="text-center text-muted" style="font-size:.8rem">${item.prod.unidade}</td>
+        <td class="text-end text-muted" style="font-size:.8rem">${item.estoque_atual}</td>
+        <td><input type="number" id="ajt-qtd-${item.key}" class="form-control form-control-sm text-center"
+          min="0" step="${step}" value="${item.qtdNova}" style="width:90px"
+          oninput="atualizarQtdAjt('${item.key}',this.value)"></td>
+        <td class="text-center"><button class="btn btn-sm btn-outline-danger py-0 px-1"
+          onclick="removerItemAjt('${item.key}')"><i class="bi bi-trash3" style="font-size:.75rem"></i></button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function atualizarQtdAjt(key, val) {
+    const item = ajtLista.find(i => i.key===key); if(!item) return;
+    item.qtdNova = parseFloat(val)||0;
+    const diff = item.qtdNova - item.estoque_atual;
+    const nome = item.variacao_nome
+      ? `${item.prod.nome} <span class="badge bg-secondary ms-1" style="font-size:.7rem">${item.variacao_nome}</span>`
+      : item.prod.nome;
+    const td = document.getElementById('ajt-nm-'+key);
+    if (td) td.innerHTML = nome + (diff===0?'':diff>0
+      ? `<span class="text-success ms-1" style="font-size:.75rem">+${diff}</span>`
+      : `<span class="text-danger ms-1" style="font-size:.75rem">${diff}</span>`);
+  }
+
+  async function confirmarAjuste() {
+    if (!ajtLista.length) { showToast('Selecione pelo menos um produto','error'); return; }
+    if (ajtLista.some(i => i.qtdNova<0||isNaN(i.qtdNova))) { showToast('Quantidade não pode ser negativa','error'); return; }
+    if (!confirmDialog(`Confirmar ajuste de ${ajtLista.length} item(ns)?`)) return;
+    const motivo  = document.getElementById('ajt-motivo').value || 'Ajuste de inventário';
+    const vendedor = getVendedor();
+    let ok=0, erros=0;
+    for (const item of ajtLista) {
+      try {
+        await api.estoque.ajuste({ produto_id:item.prod.id, variacao_id:item.variacao_id, quantidade_nova:item.qtdNova, motivo, vendedor_id:vendedor.id });
+        ok++;
+      } catch(e) { erros++; }
+    }
+    showToast(`${ok} ajuste(s) realizado(s)!${erros?' '+erros+' com erro.':''}`, erros?'error':'success');
+    ajtLista=[]; renderListaAjt(); await carregarListaAjt();
+  }
+
+  init();
+</script>
+</body>
+</html>

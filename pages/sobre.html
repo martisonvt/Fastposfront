@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sobre Nós</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --verde:       #2a8a4a;
+      --verde-dark:  #1a5c33;
+      --verde-deep:  #0f3d22;
+      --verde-light: #e8f5ee;
+      --verde-mid:   #c8e6d4;
+      --surface:     #ffffff;
+      --bg:          #f4f6f3;
+      --text:        #1a2218;
+      --text-muted:  #6b7b68;
+      --border:      #e2e8df;
+      --radius:      14px;
+      --shadow-sm:   0 1px 4px rgba(0,0,0,.07);
+      --shadow-md:   0 4px 16px rgba(0,0,0,.10);
+      --transition:  .18s cubic-bezier(.4,0,.2,1);
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--bg); font-family: 'Inter','Segoe UI',sans-serif; color: var(--text); margin: 0; }
+
+    /* ── Header ─── */
+    .loja-header {
+      background: linear-gradient(135deg, var(--verde-deep) 0%, var(--verde-dark) 60%, var(--verde) 100%);
+      color: #fff;
+      position: sticky; top: 0; z-index: 300;
+      box-shadow: 0 2px 16px rgba(0,0,0,.28);
+    }
+    .header-top {
+      padding: .65rem 1.25rem .65rem;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .header-logo-img {
+      height: 42px; width: auto; object-fit: contain;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,.3));
+      flex-shrink: 0;
+    }
+    .header-brand { flex: 1; min-width: 0; }
+    .header-brand h1 {
+      font-size: 1.15rem; font-weight: 800; margin: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .header-brand small {
+      font-size: .68rem; opacity: .72; display: block;
+    }
+    .btn-voltar {
+      display: flex; align-items: center; gap: .35rem;
+      background: rgba(255,255,255,.14);
+      border: 1.5px solid rgba(255,255,255,.3);
+      color: #fff; border-radius: 50px;
+      padding: .4rem .8rem; font-size: .84rem;
+      font-weight: 600; white-space: nowrap;
+      text-decoration: none;
+      transition: background var(--transition);
+      flex-shrink: 0;
+    }
+    .btn-voltar:hover { background: rgba(255,255,255,.25); color: #fff; }
+
+    /* ── Hero ─── */
+    .sobre-hero {
+      background: linear-gradient(135deg, var(--verde-deep), var(--verde-dark));
+      color: #fff;
+      padding: 3rem 1.5rem 2.5rem;
+      text-align: center;
+    }
+    .sobre-hero-icon {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(255,255,255,.12);
+      border: 2px solid rgba(255,255,255,.25);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 2rem; margin-bottom: 1rem;
+    }
+    .sobre-hero h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: .4rem; }
+    .sobre-hero p  { font-size: .95rem; opacity: .8; margin: 0; }
+
+    /* ── Conteúdo ─── */
+    .sobre-body {
+      max-width: 720px; margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+    .sobre-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      padding: 2rem;
+    }
+    .sobre-texto {
+      font-size: .95rem; line-height: 1.85;
+      color: var(--text); white-space: pre-line;
+    }
+    .sobre-vazio {
+      text-align: center; padding: 2rem;
+      color: var(--text-muted); font-size: .9rem;
+    }
+    .sobre-vazio i { font-size: 2.5rem; display: block; margin-bottom: .75rem; color: var(--verde-mid); }
+
+    /* ── Footer ─── */
+    .loja-footer {
+      background: var(--verde-deep);
+      color: rgba(255,255,255,.85);
+      padding: 1.5rem;
+      text-align: center;
+      font-size: .82rem;
+    }
+    .btn-whatsapp {
+      display: inline-flex; align-items: center; gap: .45rem;
+      background: #25d366; color: #fff; border: none;
+      border-radius: 50px; padding: .5rem 1.2rem;
+      font-size: .85rem; font-weight: 700;
+      text-decoration: none; margin-top: .75rem;
+    }
+    .btn-whatsapp:hover { color: #fff; opacity: .9; }
+
+    @media (max-width: 576px) {
+      .sobre-hero { padding: 2rem 1rem 1.75rem; }
+      .sobre-hero h2 { font-size: 1.4rem; }
+      .sobre-card { padding: 1.25rem; }
+      .sobre-body { padding: 1.25rem .75rem 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="loja-header">
+  <div class="header-top">
+    <img id="header-logo" src="" alt="Logo" class="header-logo-img" style="display:none"
+         onerror="this.style.display='none'">
+    <div class="header-brand">
+      <h1 id="loja-nome">Loja Online</h1>
+      <small id="loja-sub"></small>
+    </div>
+    <a href="/loja" class="btn-voltar">
+      <i class="bi bi-arrow-left"></i> Loja
+    </a>
+  </div>
+</header>
+
+<!-- Hero -->
+<div class="sobre-hero">
+  <div id="sobre-hero-icon" class="sobre-hero-icon"><i class="bi bi-building-heart"></i></div>
+  <h2 id="sobre-titulo">Sobre Nós</h2>
+  <p id="sobre-subtitulo">Conheça nossa história</p>
+</div>
+
+<!-- Conteúdo -->
+<div class="sobre-body">
+  <div class="sobre-card">
+    <div id="sobre-conteudo">
+      <div class="sobre-vazio">
+        <i class="bi bi-hourglass-split"></i>
+        <div>Carregando...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center mt-4">
+    <a href="/loja" class="btn btn-outline-success rounded-pill px-4">
+      <i class="bi bi-arrow-left me-1"></i>Voltar à Loja
+    </a>
+  </div>
+</div>
+
+<!-- Footer simples -->
+<footer class="loja-footer" id="sobre-footer">
+  <div id="footer-nome-sobre"></div>
+  <div id="footer-contato-sobre" class="mt-1" style="opacity:.7"></div>
+  <div id="footer-wa-sobre"></div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+async function init() {
+  try {
+    const r   = await fetch('/api/loja/config');
+    const cfg = await r.json();
+
+    // Header
+    if (cfg.nome_empresa) {
+      document.getElementById('loja-nome').textContent = cfg.nome_empresa;
+      document.title = 'Sobre Nós — ' + cfg.nome_empresa;
+    }
+    const sub = cfg.loja_descricao || cfg.cidade_uf || '';
+    if (sub) document.getElementById('loja-sub').textContent = sub;
+    if (cfg.loja_logo) {
+      const hLogo = document.getElementById('header-logo');
+      if (hLogo) { hLogo.src = cfg.loja_logo; hLogo.style.display = ''; }
+    }
+
+    // Hero
+    if (cfg.loja_sobre_titulo)    document.getElementById('sobre-titulo').textContent    = cfg.loja_sobre_titulo;
+    if (cfg.loja_sobre_subtitulo) document.getElementById('sobre-subtitulo').textContent = cfg.loja_sobre_subtitulo;
+    if (cfg.loja_sobre_imagem) {
+      const heroIcon = document.getElementById('sobre-hero-icon');
+      heroIcon.innerHTML = `<img src="${cfg.loja_sobre_imagem}" alt="Foto" style="width:72px;height:72px;object-fit:cover;border-radius:50%;display:block">`;
+    }
+
+    // Conteúdo
+    const texto = (cfg.loja_sobre_texto || '').trim();
+    document.getElementById('sobre-conteudo').innerHTML = texto
+      ? `<div class="sobre-texto">${_escHtml(texto)}</div>`
+      : `<div class="sobre-vazio"><i class="bi bi-info-circle"></i><div>Conteúdo da página "Sobre Nós" ainda não configurado.<br>Acesse <strong>Config. da Loja</strong> no painel para adicionar.</div></div>`;
+
+    // Footer
+    if (cfg.nome_empresa) document.getElementById('footer-nome-sobre').textContent = cfg.nome_empresa;
+    const partes = [];
+    if (cfg.endereco)  partes.push(cfg.endereco);
+    if (cfg.cidade_uf) partes.push(cfg.cidade_uf);
+    if (cfg.telefone)  partes.push(cfg.telefone);
+    document.getElementById('footer-contato-sobre').textContent = partes.join(' • ');
+
+    const wa = cfg.loja_whatsapp || '';
+    if (wa) {
+      const num = wa.replace(/\D/g,'');
+      document.getElementById('footer-wa-sobre').innerHTML =
+        `<a href="https://wa.me/55${num}?text=Olá, vim da loja online!" target="_blank" class="btn-whatsapp">
+          <i class="bi bi-whatsapp"></i> Fale no WhatsApp
+        </a>`;
+    }
+  } catch(_) {}
+}
+
+function _escHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+</body>
+</html>
